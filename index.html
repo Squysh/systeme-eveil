@@ -747,7 +747,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 20";
+const BUILD="24/08 · 21";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const $=s=>document.querySelector(s);
@@ -796,12 +796,14 @@ function storageOK(){
 /* Écrire puis relire dans la même session ne prouve rien : certains navigateurs
    acceptent l'écriture puis jettent le bac en fermant la page. La seule preuve
    de persistance est de retrouver, à l'ouverture suivante, un témoin posé avant. */
+let PERSIST=null;
 function persistence(){
+  if(PERSIST!==null)return PERSIST;
   try{
-    if(localStorage.getItem(KEY+"-temoin"))return "ok";
-    localStorage.setItem(KEY+"-temoin",String(Date.now()));
-    return "inconnu";
-  }catch(e){return "bloque"}
+    if(localStorage.getItem(KEY+"-temoin"))PERSIST="ok";
+    else{localStorage.setItem(KEY+"-temoin",String(Date.now()));PERSIST="inconnu"}
+  }catch(e){PERSIST="bloque"}
+  return PERSIST;
 }
 
 /* Toujours afficher l'état, même quand tout va bien : un écran muet ne permet
