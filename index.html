@@ -442,6 +442,12 @@ input.bad,select.bad{border-color:var(--danger)!important;box-shadow:0 0 10px rg
         </select></label>
         <label class="field"><span>Sommeil visé (h)</span><input id="p-sleep" type="number" step="0.25" inputmode="decimal"></label>
       </div>
+      <label class="field"><span>Cible protéines</span><select id="p-prot">
+        <option value="1.4">1,4 g/kg de masse maigre — plancher, quand le choix est limité</option>
+        <option value="1.6">1,6 g/kg — suffisant pour protéger le muscle</option>
+        <option value="1.8">1,8 g/kg — confortable</option>
+        <option value="2">2,0 g/kg — borne haute, sans gain démontré</option>
+      </select></label>
       <label class="field"><span>Sévérité du Système</span><select id="p-sev">
         <option value="normal">Normale — 30 XP par échec</option>
         <option value="severe">Sévère — sanction croissante et zone de pénalité</option>
@@ -762,7 +768,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 51";
+const BUILD="24/08 · 60";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -785,7 +791,7 @@ const blank=()=>({
   day:null,quests:[],side:[],
   weights:[],runs:[],flexTests:[],flexDone:0,
   days:{},customFoods:[],
-  severity:"severe",fails:0,pending:null,worstFails:0,dayBonus:0,
+  severity:"severe",fails:0,pending:null,worstFails:0,dayBonus:0,protPerKg:1.6,
   totals:{push:0,squat:0,core:0},
   log:[],ach:[],created:today()
 });
@@ -921,9 +927,10 @@ const lastComp=()=>{for(let i=S.weights.length-1;i>=0;i--)if(S.weights[i].fat)re
    la graisse n'a aucun besoin d'être nourrie en protéines. */
 function proteinGoal(){
   const w=curW();if(!w)return null;
+  const k=S.protPerKg||1.6;
   const c=lastComp();
-  if(c&&c.fat)return Math.round(c.v*(1-c.fat/100)*2);
-  return Math.round(Math.min(w,S.goalW*1.15)*1.8);
+  if(c&&c.fat)return Math.round(c.v*(1-c.fat/100)*k);
+  return Math.round(Math.min(w,S.goalW*1.15)*k*0.9);
 }
 function baseBurn(){const b=bmr();return b?Math.round(b*1.35):null}
 /* Dépense d'une sortie : la valeur de la montre si elle est fournie, sinon
@@ -1067,7 +1074,7 @@ function genQuests(){
   ];
 }
 const SIDE=[
-  {id:"prot",t:"Atteindre la cible protéines",s:"2 g par kg de masse maigre",xp:12,st:["FOR",.2]},
+  {id:"prot",t:"Atteindre la cible protéines",s:"Réglable dans les paramètres",xp:12,st:["FOR",.2]},
   {id:"steps",t:"8 000 pas hors séance",s:"La dépense la moins coûteuse",xp:8,st:["END",.15]},
   {id:"nosugar",t:"Zéro sucre ajouté",s:"Sodas, biscuits, sauces sucrées",xp:12,st:["DIS",.3]},
   {id:"nolate",t:"Rien après 21 h",s:"Coupe le grignotage du soir",xp:10,st:["DIS",.25]}
@@ -1371,7 +1378,7 @@ function render(){
 
   renderQuests();renderProg();renderRun();renderFlexHist();renderDay();renderBody();
   $("#p-wt").value=S.goalW;$("#p-goalpace").value=S.goalPace;
-  $("#p-def").value=S.deficit;$("#p-sleep").value=S.sleepGoal;$("#p-sev").value=S.severity;
+  $("#p-def").value=S.deficit;$("#p-sleep").value=S.sleepGoal;$("#p-sev").value=S.severity;$("#p-prot").value=S.protPerKg;
   $("#p-h").value=S.h;$("#p-age").value=S.age;
   save();
 }
@@ -2561,6 +2568,7 @@ $("#b-save").addEventListener("click",()=>{
   S.deficit=parseInt($("#p-def").value,10);
   S.sleepGoal=parseFloat($("#p-sleep").value)||7.5;
   S.severity=$("#p-sev").value;
+  S.protPerKg=parseFloat($("#p-prot").value)||1.6;
   S.h=parseFloat($("#p-h").value)||S.h;
   S.age=parseInt($("#p-age").value,10)||S.age;
   toast("Paramètres mis à jour","Cibles recalculées.");
