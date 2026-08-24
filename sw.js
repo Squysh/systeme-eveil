@@ -1,9 +1,36 @@
-/* Réseau d'abord : une mise à jour est toujours prise en compte dès qu'il y a
-   du réseau, et le cache ne sert que de secours hors ligne. C'est l'inverse du
-   comportement par défaut de Safari, qui gardait indéfiniment l'ancienne page. */
-const CACHE = "systeme-eveil";
+/* Réseau d'abord, avec précache complet.
 
-self.addEventListener("install", e => self.skipWaiting());
+   Réseau d'abord : une mise à jour est prise en compte dès qu'il y a du réseau,
+   même depuis un raccourci d'écran d'accueil, là où Safari gardait sinon
+   l'ancienne page indéfiniment.
+
+   Précache : tout ce dont l'application a besoin est enregistré dès
+   l'installation, pour qu'elle démarre en mode avion, dès la première fois. */
+const CACHE = "systeme-eveil-v3";
+
+const RESSOURCES = [
+  "./",
+  "./index.html",
+  "./fonts.css",
+  "./manifest.json",
+  "./icon-180.png",
+  "./icon-192.png",
+  "./icon-512.png",
+  "./fonts/ChakraPetch-400.woff2",
+  "./fonts/ChakraPetch-600.woff2",
+  "./fonts/ChakraPetch-700.woff2",
+  "./fonts/IBMPlexMono-400.woff2",
+  "./fonts/IBMPlexMono-600.woff2",
+  "./fonts/IBMPlexSans-var.woff2",
+];
+
+self.addEventListener("install", e => {
+  e.waitUntil(
+    caches.open(CACHE)
+      .then(c => c.addAll(RESSOURCES))
+      .then(() => self.skipWaiting())
+  );
+});
 
 self.addEventListener("activate", e => e.waitUntil(
   caches.keys()
@@ -23,6 +50,6 @@ self.addEventListener("fetch", e => {
         }
         return rep;
       })
-      .catch(() => caches.match(r).then(c => c || caches.match("./")))
+      .catch(() => caches.match(r).then(c => c || caches.match("./index.html")))
   );
 });

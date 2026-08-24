@@ -1,0 +1,8 @@
+/* Polices embarquees : l'application ne depend d'aucun serveur externe.
+   IBM Plex Sans est une police variable, un seul fichier couvre les graisses. */
+@font-face{font-family:'Chakra Petch';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/ChakraPetch-400.woff2') format('woff2')}
+@font-face{font-family:'Chakra Petch';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/ChakraPetch-600.woff2') format('woff2')}
+@font-face{font-family:'Chakra Petch';font-style:normal;font-weight:700;font-display:swap;src:url('fonts/ChakraPetch-700.woff2') format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:400;font-display:swap;src:url('fonts/IBMPlexMono-400.woff2') format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-weight:600;font-display:swap;src:url('fonts/IBMPlexMono-600.woff2') format('woff2')}
+@font-face{font-family:'IBM Plex Sans';font-style:normal;font-weight:100 700;font-display:swap;src:url('fonts/IBMPlexSans-var.woff2') format('woff2')}
