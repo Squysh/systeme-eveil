@@ -764,9 +764,10 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 31";
+const BUILD="24/08 · 40";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
+const NL=String.fromCharCode(10);
 const $=s=>document.querySelector(s);
 const $$=s=>[...document.querySelectorAll(s)];
 const ymd=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
@@ -786,7 +787,7 @@ const blank=()=>({
   day:null,quests:[],side:[],
   weights:[],runs:[],flexTests:[],flexDone:0,
   days:{},customFoods:[],
-  severity:"severe",fails:0,pending:null,worstFails:0,
+  severity:"severe",fails:0,pending:null,worstFails:0,dayBonus:0,
   totals:{push:0,squat:0,core:0},
   log:[],ach:[],created:today()
 });
@@ -893,6 +894,12 @@ function gainXP(n,why){
   if(up){const r=rankOf(S.lvl);
     toast("Niveau supérieur","Niveau "+S.lvl+" — rang "+r[1]+". "+why,"gold");
     logIt("Niveau "+S.lvl+" atteint");}
+}
+/* Annule un gain : sert uniquement à corriger une validation faite par erreur. */
+function revokeXP(n){
+  S.xp-=n;
+  while(S.xp<0&&S.lvl>1){S.lvl--;S.xp+=need(S.lvl)}
+  if(S.xp<0)S.xp=0;
 }
 function bumpStat(k,n){S.stats[k]=Math.max(1,Math.round((S.stats[k]+n)*10)/10)}
 
@@ -1093,14 +1100,14 @@ function rollDay(){
       if(sur){loseXP(sur);logIt("Surplus calorique : −"+sur+" XP")}
     }
   }
-  S.day=t;S.quests=genQuests();S.side=genSide();D(t);
+  S.day=t;S.dayBonus=0;S.quests=genQuests();S.side=genSide();D(t);
   if(S.pending&&S.pending.zone)S.quests.push(zoneQuest());
   if(booted)setTimeout(()=>toast("Nouvelle quête journalière","Le Système a généré les quêtes du "+fmtDate(t)+"."),300);
 }
 function completeAll(){
   const bonus=40+S.lvl*3;
   S.streak++;S.best=Math.max(S.best,S.streak);
-  bumpStat("DIS",.4);gainXP(bonus,"Quête journalière terminée.");
+  bumpStat("DIS",.4);gainXP(bonus,"Quête journalière terminée.");S.dayBonus=bonus;
   logIt("Quête journalière terminée (série "+S.streak+")");
   toast("Quête accomplie","Toutes les quêtes du jour sont validées. +"+bonus+" XP bonus. Série : "+S.streak+" jours.","gold");
 }
@@ -1123,6 +1130,24 @@ function finishQuest(id,silent){
   if(S.quests.every(x=>x.done))completeAll();
   return true;
 }
+/* Décocher une quête manuelle : rend les points, la statistique, le volume
+   compté dans les paliers, et le bonus de journée s'il avait été accordé. */
+function unfinishQuest(id){
+  const q=S.quests.find(x=>x.id===id);
+  if(!q||!q.done)return false;
+  q.done=false;
+  bumpStat(q.st[0],-q.st[1]);
+  revokeXP(q.xp);
+  if(q.n&&S.totals&&S.totals[q.id]!==undefined)S.totals[q.id]=Math.max(0,S.totals[q.id]-q.n);
+  if(S.dayBonus){
+    revokeXP(S.dayBonus);
+    S.streak=Math.max(0,S.streak-1);
+    bumpStat("DIS",-.4);
+    S.dayBonus=0;
+  }
+  return true;
+}
+
 /* validation automatique du trio suivi */
 function autoQuests(){
   const t=today(),d=D(t),c=cible(t),e=eaten(t);
@@ -2326,6 +2351,18 @@ $("#b-init").addEventListener("click",()=>{
 $("#questlist").addEventListener("click",e=>{
   const el=e.target.closest("[data-q]");if(!el)return;
   const q=S.quests.find(x=>x.id===el.dataset.q);
+  if(q&&q.done){
+    if(q.grp==="auto"||q.proof){
+      toast("Validation automatique","Celle-ci suit tes données : elle se décochera si le suivi correspondant redescend sous la cible.","bad");
+      return;
+    }
+    if(!confirm("Annuler la validation de « "+q.t+" » ?"+NL+NL+"Le Système reprend "+q.xp+" XP"+
+      (S.dayBonus?" et le bonus de journée de "+S.dayBonus+" XP":"")+"."))return;
+    unfinishQuest(q.id);
+    toast("Validation annulée",q.t+" · le Système a repris ses points.","bad");
+    checkAch();render();
+    return;
+  }
   if(q&&!q.done&&q.grp==="auto"){
     toast("Quête verrouillée","Elle se valide seule dès que le suivi correspondant atteint sa cible, dans l'onglet Journée.","bad");
     return;
@@ -2569,5 +2606,14 @@ else{
 }
 </script>
 
+<script>
+// Reseau d'abord : garantit qu'une mise a jour arrive meme depuis un raccourci
+// d'ecran d'accueil, ou Safari sert sinon une copie figee indefiniment.
+if ("serviceWorker" in navigator) {
+  addEventListener("load", function () {
+    navigator.serviceWorker.register("sw.js").then(function (r) { r.update(); });
+  });
+}
+</script>
 </body>
 </html>
