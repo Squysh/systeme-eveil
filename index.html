@@ -638,6 +638,11 @@ input.bad,select.bad{border-color:var(--danger)!important;box-shadow:0 0 10px rg
     </div>
 
     <div class="panel">
+      <h2>Suivi du jour</h2>
+      <div class="mini" id="minibars"></div>
+    </div>
+
+    <div class="panel">
       <h2>Repas du jour</h2>
       <div class="chips" id="mealchips"></div>
       <input id="foodq" type="text" placeholder="Chercher un aliment…" autocomplete="off">
@@ -672,11 +677,6 @@ input.bad,select.bad{border-color:var(--danger)!important;box-shadow:0 0 10px rg
         <label class="field"><span>Premier repas aujourd'hui</span><input id="fa-start" type="time"></label>
       </div>
       <p class="tiny" id="fa-scale"></p>
-    </div>
-
-    <div class="panel">
-      <h2>Suivi du jour</h2>
-      <div class="mini" id="minibars"></div>
     </div>
 
     <div class="panel">
@@ -804,7 +804,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 70";
+const BUILD="24/08 · 71";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
