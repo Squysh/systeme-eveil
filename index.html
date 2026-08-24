@@ -159,13 +159,14 @@ input,select,textarea{font-family:inherit}
 label.field{display:block;margin-bottom:11px}
 label.field span{display:block;font-family:var(--f-disp);font-size:.66rem;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-2);margin-bottom:5px}
 input,select,textarea{
-  width:100%;padding:10px 12px;background:#070d1a;border:1px solid var(--edge);
-  color:var(--ink);font-family:var(--f-mono);font-size:16px;border-radius:0;
+  width:100%;min-width:0;max-width:100%;padding:10px 12px;background:#070d1a;
+  border:1px solid var(--edge);color:var(--ink);font-family:var(--f-mono);
+  font-size:16px;border-radius:0;box-sizing:border-box;
 }
 textarea{min-height:96px;resize:vertical;line-height:1.4;font-size:16px}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--cyan);box-shadow:var(--glow)}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:end}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-items:end}
 
 .nav{
   position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(6,10,20,.94);
@@ -557,7 +558,7 @@ input.bad,select.bad{border-color:var(--danger)!important;box-shadow:0 0 10px rg
         <label class="field"><span>Secondes</span><input id="r-s" type="number" inputmode="numeric" placeholder="30"></label>
       </div>
       <div class="grid2">
-        <label class="field"><span>Dénivelé + (m)</span><input id="r-dp" type="number" inputmode="numeric" placeholder="facultatif"></label>
+        <label class="field"><span>Dénivelé + m</span><input id="r-dp" type="number" inputmode="numeric" placeholder="facultatif"></label>
         <label class="field"><span>FC moyenne</span><input id="r-hr" type="number" inputmode="numeric" placeholder="facultatif"></label>
       </div>
       <button class="btn" id="b-run">Valider la course</button>
@@ -686,7 +687,7 @@ input.bad,select.bad{border-color:var(--danger)!important;box-shadow:0 0 10px rg
       </div>
       <div class="grid2" style="margin-top:12px">
         <label class="field"><span>Dernier repas hier</span><input id="fa-end" type="time"></label>
-        <label class="field"><span>Premier repas aujourd'hui</span><input id="fa-start" type="time"></label>
+        <label class="field"><span>Reprise aujourd'hui</span><input id="fa-start" type="time"></label>
       </div>
       <p class="tiny" id="fa-scale"></p>
     </div>
@@ -822,7 +823,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 90";
+const BUILD="24/08 · 91";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
