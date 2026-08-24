@@ -160,9 +160,9 @@ label.field{display:block;margin-bottom:11px}
 label.field span{display:block;font-family:var(--f-disp);font-size:.66rem;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-2);margin-bottom:5px}
 input,select,textarea{
   width:100%;padding:10px 12px;background:#070d1a;border:1px solid var(--edge);
-  color:var(--ink);font-family:var(--f-mono);font-size:.95rem;border-radius:0;
+  color:var(--ink);font-family:var(--f-mono);font-size:16px;border-radius:0;
 }
-textarea{min-height:96px;resize:vertical;line-height:1.4;font-size:.82rem}
+textarea{min-height:96px;resize:vertical;line-height:1.4;font-size:16px}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--cyan);box-shadow:var(--glow)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
@@ -500,13 +500,12 @@ input.bad,select.bad{border-color:var(--danger)!important;box-shadow:0 0 10px rg
     <div class="panel">
       <h2>Suivi par Claude</h2>
       <p class="tiny" id="stostate" style="margin-top:-6px"></p>
-      <p class="muted" style="margin-top:0;font-size:.83rem">Copie ton bilan et colle-le dans la conversation. Claude lit tout d'un coup : poids, calories, déficit, sommeil, jeûne, quêtes et paliers.</p>
       <button class="btn" id="b-bilan">Copier mon bilan</button>
       <textarea id="bilanout" hidden readonly style="margin-top:12px"></textarea>
       <div class="btnrow">
         <button class="btn ghost sm" id="b-export">Copier la sauvegarde complète</button>
       </div>
-      <p class="tiny">La sauvegarde complète sert à transférer ta progression d'un appareil à l'autre : copie-la ici, puis colle-la dans Corps → Importer sur le nouvel appareil.</p>
+      <p class="tiny">La sauvegarde sert à passer d'un appareil à l'autre : colle-la dans Corps → Importer.</p>
     </div>
   </section>
 
@@ -535,7 +534,6 @@ input.bad,select.bad{border-color:var(--danger)!important;box-shadow:0 0 10px rg
     <div class="panel">
       <h2>Règle de pénalité</h2>
       <p class="muted" style="margin:0;font-size:.85rem" id="pen-rule"></p>
-      <p class="muted" style="margin:10px 0 0;font-size:.85rem"> Les quêtes marquées d'une barre violette se valident toutes seules dès que le suivi correspondant atteint sa cible.</p>
     </div>
   </section>
 
@@ -564,19 +562,32 @@ input.bad,select.bad{border-color:var(--danger)!important;box-shadow:0 0 10px rg
     </div>
 
     <div class="panel">
-      <h2>Chrono estimé sur 5 km</h2>
-      <div class="stats">
-        <div class="stat"><div class="k">Meilleure estimation</div><div class="v" id="r-best">—</div></div>
-        <div class="stat"><div class="k">Objectif</div><div class="v" id="r-goal">—</div></div>
-        <div class="stat"><div class="k">Volume total</div><div class="v" id="r-vol">0<em>km</em></div></div>
-        <div class="stat"><div class="k">Séances</div><div class="v" id="r-n">0</div></div>
+      <h2>Projection 5 km</h2>
+      <div class="hero">
+        <svg viewBox="0 0 290 176">
+          <path d="M25 160 A120 120 0 0 1 265 160" fill="none" stroke="#0d1b2e" stroke-width="18" stroke-linecap="round"/>
+          <path id="r-arc" d="M25 160 A120 120 0 0 1 265 160" fill="none" stroke="#8b6cf6" stroke-width="18"
+            stroke-linecap="round" stroke-dasharray="377" stroke-dashoffset="377"/>
+          <text id="r-big" x="145" y="122" text-anchor="middle" fill="#e8f2ff"
+            font-family="IBM Plex Mono, monospace" font-size="54" font-weight="600">—</text>
+          <text id="r-cap" x="145" y="150" text-anchor="middle" fill="#5b708f"
+            font-family="Chakra Petch, sans-serif" font-size="12" letter-spacing="3">SUR 5 KM</text>
+        </svg>
+        <div class="heronums">
+          <div><b id="r-goal">—</b><span>OBJECTIF</span></div><i></i>
+          <div><b id="r-vol">0</b><span>KM TOTAL</span></div><i></i>
+          <div><b id="r-n">0</b><span>SÉANCES</span></div>
+        </div>
       </div>
-      <p class="tiny" id="r-note"></p>
+      <p class="tiny" id="r-note" style="text-align:center;margin-top:14px"></p>
     </div>
 
     <div class="panel">
       <h2>Plan 12 semaines</h2>
-      <div id="planlist"></div>
+      <div class="week now" id="planweek"></div>
+      <details style="margin-top:10px"><summary class="tiny" style="cursor:pointer">Voir les 12 semaines</summary>
+        <div id="planlist" style="margin-top:8px"></div>
+      </details>
     </div>
 
     <div class="panel">
@@ -606,8 +617,7 @@ input.bad,select.bad{border-color:var(--danger)!important;box-shadow:0 0 10px rg
 
     <div class="panel">
       <h2>Tests de souplesse</h2>
-      <p class="muted" style="margin-top:0;font-size:.82rem">Refais le test toutes les 2 semaines, jambes tendues, sans élan.</p>
-      <label class="field"><span>Distance doigts → orteils (cm, négatif si tu dépasses)</span><input id="f-test" type="number" step="0.5" inputmode="decimal" placeholder="-12"></label>
+      <label class="field"><span>Doigts → orteils, en cm (négatif si tu dépasses)</span><input id="f-test" type="number" step="0.5" inputmode="decimal" placeholder="-12"></label>
       <button class="btn" id="b-flextest">Enregistrer le test</button>
       <ul class="hist" id="flexlist" style="margin-top:12px"></ul>
     </div>
@@ -726,22 +736,28 @@ input.bad,select.bad{border-color:var(--danger)!important;box-shadow:0 0 10px rg
       <h2>Pesée</h2>
       <label class="field"><span>Poids du jour (kg)</span><input id="w-in" type="number" step="0.1" inputmode="decimal" placeholder="81.4"></label>
       <button class="btn" id="b-weigh">Enregistrer la pesée</button>
-      <p class="tiny">À jeun, le matin, après les toilettes. Une fois par jour maximum.</p>
+      <p class="tiny">À jeun, le matin, une fois par jour.</p>
     </div>
 
     <div class="panel">
       <h2>Progression du poids</h2>
-      <div class="xpwrap">
-        <div class="xprow"><span>DÉPART → OBJECTIF</span><span id="wp-val">—</span></div>
-        <div class="bar green tall"><i id="wp-bar" style="width:0%"></i></div>
+      <div class="hero">
+        <svg viewBox="0 0 290 176">
+          <path d="M25 160 A120 120 0 0 1 265 160" fill="none" stroke="#0d1b2e" stroke-width="18" stroke-linecap="round"/>
+          <path id="w-arc" d="M25 160 A120 120 0 0 1 265 160" fill="none" stroke="#3fe0ff" stroke-width="18"
+            stroke-linecap="round" stroke-dasharray="377" stroke-dashoffset="377"/>
+          <text id="w-big" x="145" y="122" text-anchor="middle" fill="#e8f2ff"
+            font-family="IBM Plex Mono, monospace" font-size="54" font-weight="600">—</text>
+          <text id="w-cap" x="145" y="150" text-anchor="middle" fill="#5b708f"
+            font-family="Chakra Petch, sans-serif" font-size="12" letter-spacing="3">KG À PERDRE</text>
+        </svg>
+        <div class="heronums">
+          <div><b id="w-cur">—</b><span>ACTUEL</span></div><i></i>
+          <div><b id="w-rate">—</b><span>KG / SEM.</span></div><i></i>
+          <div><b id="w-bmi">—</b><span>IMC</span></div>
+        </div>
       </div>
-      <div class="stats" style="margin-top:16px">
-        <div class="stat"><div class="k">Actuel</div><div class="v" id="w-cur">—</div></div>
-        <div class="stat"><div class="k">Reste</div><div class="v" id="w-left">—</div></div>
-        <div class="stat"><div class="k">Rythme / sem.</div><div class="v" id="w-rate">—</div></div>
-        <div class="stat"><div class="k">IMC</div><div class="v" id="w-bmi">—</div></div>
-      </div>
-      <p class="tiny" id="w-eta"></p>
+      <p class="tiny" id="w-eta" style="text-align:center;margin-top:14px"></p>
     </div>
 
     <div class="panel" id="comp-panel" hidden>
@@ -752,9 +768,9 @@ input.bad,select.bad{border-color:var(--danger)!important;box-shadow:0 0 10px rg
 
     <div class="panel">
       <h2>Importer</h2>
-      <p class="muted" style="margin-top:0;font-size:.83rem"><b style="color:var(--cyan)">Voie principale :</b> envoie tes captures d'écran à Claude dans la conversation. Il te renvoie un bloc à coller ci-dessous, puis tu valides. Le Système accepte aussi les fichiers exportés et le texte brut d'un écran Garmin ou Strava, et ignore toujours ce qui est déjà enregistré.</p>
       <details style="margin-bottom:14px">
-        <summary class="tiny" style="cursor:pointer">Format de synchronisation reconnu</summary>
+        <summary class="tiny" style="cursor:pointer">Comment ça marche, et le format reconnu</summary>
+        <p class="muted" style="font-size:.83rem">Envoie tes captures à Claude : il te renvoie un bloc à coller ci-dessous. Le Système accepte aussi les fichiers exportés et le texte brut d'un écran Garmin ou Strava, et ignore ce qui est déjà enregistré.</p>
         <pre class="tiny" style="margin:9px 0 0;padding:10px;background:#070d1a;border:1px solid var(--edge-soft);overflow-x:auto;line-height:1.7">COURSE  | 2026-08-23 | 5.02 | 26:41 | tempo
 COURSE  | 2026-08-23 | 3.88 | 35:44 | endurance | fc=152 | bloc=3.22/25:44
 COURSE  | 2026-08-23 | 6.21 | 55:56 | trail | dp=320 | fc=165 | kcal=640
@@ -804,7 +820,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 72";
+const BUILD="24/08 · 80";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -1533,19 +1549,29 @@ const PLAN=[
 ];
 const currentWeek=()=>clamp(Math.floor(dayDiff(S.created,today())/7)+1,1,12);
 function renderRun(){
-  const b5=best5k(),g5=S.goalPace*5;
-  $("#r-best").innerHTML=b5?fmtTime(b5):"—";
-  $("#r-goal").innerHTML=fmtTime(g5);
-  $("#r-vol").innerHTML=nb(totalKm(),1)+"<em>km</em>";
-  const dp=S.runs.reduce((a,r)=>a+(r.dp||0),0);
-  const hrs=S.runs.filter(r=>r.hr);
-  $("#r-n").innerHTML=S.runs.length+(dp?'<em>· D+ '+nb(dp)+' m</em>':"");
+  const b5=best5k(),g5=S.goalPace*5,arc=$("#r-arc"),LONG=377;
+  if(b5){
+    const pct=clamp(g5/b5,0,1);
+    const atteint=b5<=g5;
+    const col=atteint?"#4ade80":"#8b6cf6";
+    arc.setAttribute("stroke",col);
+    arc.setAttribute("stroke-dashoffset",LONG*(1-pct));
+    arc.style.filter="drop-shadow(0 0 10px "+col+"88)";
+    $("#r-big").textContent=fmtTime(b5);
+    $("#r-big").setAttribute("fill",atteint?"#4ade80":"#e8f2ff");
+    $("#r-cap").textContent=atteint?"OBJECTIF ATTEINT":"SUR 5 KM";
+  }else{
+    arc.setAttribute("stroke-dashoffset",LONG);
+    $("#r-big").textContent="—";$("#r-cap").textContent="AUCUNE COURSE";
+  }
+  $("#r-goal").textContent=fmtTime(g5);
+  $("#r-vol").textContent=nb(totalKm(),1);
+  $("#r-n").textContent=S.runs.length;
   const nTrail=S.runs.filter(r=>!isRoad(r)).length;
-  $("#r-note").textContent=(b5?"Estimation par la formule de Riegel à partir de ta meilleure sortie sur route."
-      :"Enregistre au moins une sortie sur route de 1,5 km ou plus.")+
-    (nTrail?(nTrail>1?" Tes "+nTrail+" sorties en trail comptent":" Ta sortie en trail compte")+
-      " dans le volume et l'endurance, mais reste"+(nTrail>1?"nt":"")+" hors de la projection : le dénivelé rend l'allure incomparable à celle de la route.":"")+
-    (hrs.length?" FC moyenne sur "+hrs.length+(hrs.length>1?" sorties":" sortie")+" : "+Math.round(hrs.reduce((a,r)=>a+r.hr,0)/hrs.length)+" bpm.":"");
+  $("#r-note").textContent=b5
+    ?"Estimation Riegel sur ta meilleure sortie route."+(nTrail?" "+nTrail+" trail hors projection.":"")
+    :"Enregistre une sortie route de 1,5 km ou plus.";
+
   const TL={trail:"Trail",fractionne:"Fractionné",tempo:"Tempo",endurance:"Endurance"};
   $("#runlist").innerHTML=S.runs.length?S.runs.slice().sort((a,b)=>a.date<b.date?1:-1).slice(0,14).map(r=>{
     const extra=[TL[r.type]||"Endurance"];
@@ -1555,10 +1581,12 @@ function renderRun(){
     return "<li><b>"+nb(r.d,2)+" km · "+fmtTime(r.t)+"</b><span>"+fmtTime(r.t/r.d)+"/km · "+
       extra.join(" · ")+" · "+fmtDate(r.date)+"</span></li>";
   }).join(""):'<li><b>Aucune course</b><span>—</span></li>';
+
+  /* la semaine en cours est mise en avant, les onze autres sont repliees */
   const cw=currentWeek();
+  $("#planweek").innerHTML='<div class="n">SEM '+String(cw).padStart(2,"0")+'</div><div class="d">'+PLAN[cw-1]+"</div>";
   $("#planlist").innerHTML=PLAN.map((p,i)=>
-    '<div class="week'+(i+1===cw?" now":"")+'"><div class="n">SEM '+String(i+1).padStart(2,"0")+'</div><div class="d">'+p+"</div></div>").join("")+
-    '<p class="tiny" style="margin-bottom:0">Trois séances par semaine, jamais deux jours durs à la suite. Semaine en cours : '+cw+'.</p>';
+    '<div class="week'+(i+1===cw?" now":"")+'"><div class="n">SEM '+String(i+1).padStart(2,"0")+'</div><div class="d">'+p+"</div></div>").join("");
 }
 function renderFlexHist(){
   $("#flexlist").innerHTML=S.flexTests.length?S.flexTests.slice(-10).reverse().map(t=>
@@ -1727,21 +1755,30 @@ function weeklyRate(){
   return (w[w.length-1].v-w[0].v)/dd*7;
 }
 function renderBody(){
-  const w=curW(),rate=weeklyRate(),sw=startW();
-  if(w!==null&&sw!==null){
-    const pct=sw<=S.goalW?100:clamp((sw-w)/(sw-S.goalW)*100,0,100);
-    $("#wp-val").textContent=nb(sw,1)+" → "+nb(w,1)+" → "+nb(S.goalW,1)+" kg";
-    $("#wp-bar").style.width=(w<=S.goalW?100:pct)+"%";
-  }else{$("#wp-val").textContent="—";$("#wp-bar").style.width="0%"}
-  $("#w-cur").innerHTML=w!==null?nb(w,1)+"<em>kg</em>":"—";
-  $("#w-left").innerHTML=w!==null?nb(Math.max(0,w-S.goalW),1)+"<em>kg</em>":"—";
-  $("#w-rate").innerHTML=rate!==null?(rate>0?"+":"")+nb(rate,2)+"<em>kg</em>":"—";
-  $("#w-bmi").innerHTML=w!==null?nb(w/Math.pow(S.h/100,2),1):"—";
+  const w=curW(),rate=weeklyRate(),sw=startW(),arc=$("#w-arc"),LONG=377;
+  if(w!==null){
+    const reste=Math.max(0,w-S.goalW);
+    const pct=(sw===null||sw<=S.goalW)?(w<=S.goalW?1:0):clamp((sw-w)/(sw-S.goalW),0,1);
+    const fini=w<=S.goalW;
+    const col=fini?"#4ade80":"#3fe0ff";
+    arc.setAttribute("stroke",col);
+    arc.setAttribute("stroke-dashoffset",LONG*(1-pct));
+    arc.style.filter="drop-shadow(0 0 10px "+col+"88)";
+    $("#w-big").textContent=fini?nb(w,1):nb(reste,1);
+    $("#w-big").setAttribute("fill",fini?"#4ade80":"#e8f2ff");
+    $("#w-cap").textContent=fini?"KG · OBJECTIF ATTEINT":"KG À PERDRE";
+  }else{
+    arc.setAttribute("stroke-dashoffset",LONG);
+    $("#w-big").textContent="—";$("#w-cap").textContent="AUCUNE PESÉE";
+  }
+  $("#w-cur").textContent=w!==null?nb(w,1):"—";
+  $("#w-rate").textContent=rate!==null?(rate>0?"+":"")+nb(rate,2):"—";
+  $("#w-bmi").textContent=w!==null?nb(w/Math.pow(S.h/100,2),1):"—";
   if(w!==null&&rate!==null&&rate<-0.05&&w>S.goalW){
     const wk=(w-S.goalW)/-rate,dt=new Date();dt.setDate(dt.getDate()+wk*7);
-    $("#w-eta").textContent="À ce rythme, "+nb(S.goalW,0)+" kg vers "+dt.toLocaleDateString("fr-FR",{month:"long",year:"numeric"})+" ("+Math.round(wk)+" semaines).";
-  }else if(w!==null&&w<=S.goalW){$("#w-eta").textContent="Objectif atteint. Passe en maintien : remonte progressivement à ton niveau de maintien."}
-  else{$("#w-eta").textContent="Encore quelques pesées et le Système projettera ta date d'arrivée."}
+    $("#w-eta").textContent=nb(S.goalW,0)+" kg vers "+dt.toLocaleDateString("fr-FR",{month:"long",year:"numeric"})+" · "+Math.round(wk)+" semaines à ce rythme.";
+  }else if(w!==null&&w<=S.goalW){$("#w-eta").textContent="Objectif atteint. Passe en maintien."}
+  else{$("#w-eta").textContent="Quelques pesées de plus et le Système projettera ta date."}
   $("#wlist").innerHTML=S.weights.length?S.weights.slice(-14).reverse().map(x=>
     "<li><b>"+nb(x.v,1)+" kg</b><span>"+(x.fat?nb(x.fat,1)+" % MG · ":"")+fmtDate(x.d)+"</span></li>").join(""):'<li><b>Aucune pesée</b><span>—</span></li>';
   renderComp();
@@ -1765,9 +1802,10 @@ function renderComp(){
     (c.visc?st(c.visc<10?"ok":c.visc<15?"warn":"bad","Viscérale",c.visc):"")+
     (dFat!==null?st(dFat>0?"ok":"","Graisse perdue",(dFat>0?"−":"+")+nb(Math.abs(dFat),1)+'<em>kg</em>'):"")+
     (dLean!==null?st(dLean>=-0.5?"ok":"warn","Muscle",(dLean>=0?"+":"−")+nb(Math.abs(dLean),1)+'<em>kg</em>'):"");
-  const notes=["Objectif réel : faire descendre les "+nb(fatKg,1)+" kg de graisse, pas le chiffre de la balance. Ta masse maigre ("+nb(leanKg,1)+" kg) est ce que les protéines et le renforcement protègent."];
-  if(dLean!==null&&dLean<-0.5)notes.push("Tu as perdu "+nb(-dLean,1)+" kg de masse maigre : le déficit est trop agressif ou les protéines sont insuffisantes.");
-  if(c.tmb)notes.push("Métabolisme de base fourni par la balance ("+nb(c.tmb)+" kcal) : le Système l'utilise à la place de son estimation.");
+  const notes=[];
+  if(dLean!==null&&dLean<-0.5)notes.push("Tu as perdu "+nb(-dLean,1)+" kg de masse maigre : déficit trop agressif ou protéines insuffisantes.");
+  else notes.push("Ce sont les "+nb(fatKg,1)+" kg de graisse qui doivent descendre, pas le chiffre de la balance.");
+  if(c.tmb)notes.push("Métabolisme de base de la balance : "+nb(c.tmb)+" kcal.");
   $("#comp-note").textContent=notes.join(" ");
 }
 
