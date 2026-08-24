@@ -822,7 +822,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 81";
+const BUILD="24/08 · 90";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -835,7 +835,10 @@ const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
 const fmtTime=s=>{s=Math.round(s);const h=Math.floor(s/3600);const m=Math.floor(s%3600/60);const x=s%60;
   return h?h+":"+String(m).padStart(2,"0")+":"+String(x).padStart(2,"0"):m+":"+String(x).padStart(2,"0")};
 const fmtDate=d=>new Date(d+"T12:00:00").toLocaleDateString("fr-FR",{day:"2-digit",month:"short"});
-const nb=(n,d)=>n.toLocaleString("fr-FR",{minimumFractionDigits:d||0,maximumFractionDigits:d||0});
+/* Une seule valeur absente suffisait à faire échouer render() en entier, et
+   l'écran restait vide. Le formatage renvoie un tiret plutôt que de lever. */
+const nb=(n,d)=>(n===null||n===undefined||(typeof n==="number"&&isNaN(n)))
+  ?"—":Number(n).toLocaleString("fr-FR",{minimumFractionDigits:d||0,maximumFractionDigits:d||0});
 
 /* ================= état ================= */
 const blank=()=>({
@@ -927,6 +930,7 @@ function D(d){
   if(!S.days[d])S.days[d]={food:[],water:0,sleep:null};
   const o=S.days[d];
   o.food=o.food||[];o.water=o.water||0;o.flexSec=o.flexSec||0;
+  if(o.sleep===undefined)o.sleep=null;
   if(o.eatEnd===undefined)o.eatEnd=null;
   if(o.eatStart===undefined)o.eatStart=null;
   return o;
@@ -1207,6 +1211,21 @@ function unfinishQuest(id){
     S.dayBonus=0;
   }
   return true;
+}
+
+/* Une mise à jour peut ajouter des champs aux quêtes ; celles déjà en cours
+   les récupèrent sans perdre leur état de validation. */
+function healQuests(){
+  if(!S.quests||!S.quests.length)return;
+  const fresh=genQuests().concat([zoneQuest()]);
+  S.quests.forEach(q=>{
+    const f=fresh.find(x=>x.id===q.id);
+    if(!f)return;
+    ["n","proof","grp","st","xp","s","t"].forEach(k=>{
+      if(q[k]===undefined&&f[k]!==undefined)q[k]=f[k];
+    });
+  });
+  S.quests=S.quests.filter(q=>q.st&&q.id);
 }
 
 /* validation automatique du trio suivi */
@@ -2692,7 +2711,7 @@ $("#nav").addEventListener("click",e=>{
 function boot(){
   $("#topbar").hidden=false;$("#nav").hidden=false;
   $("#s-init").classList.remove("on");
-  rollDay();autoQuests();renderRoutine();render();go("status");booted=true;
+  rollDay();healQuests();autoQuests();renderRoutine();render();go("status");booted=true;
   if(S.pending)setTimeout(showPenalty,450);
 }
 const loaded=load();
