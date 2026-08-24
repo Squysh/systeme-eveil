@@ -764,7 +764,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 40";
+const BUILD="24/08 · 41";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -901,7 +901,9 @@ function revokeXP(n){
   while(S.xp<0&&S.lvl>1){S.lvl--;S.xp+=need(S.lvl)}
   if(S.xp<0)S.xp=0;
 }
-function bumpStat(k,n){S.stats[k]=Math.max(1,Math.round((S.stats[k]+n)*10)/10)}
+/* Deux decimales en interne : arrondir au dixieme a chaque pas rendait
+   l'annulation d'une validation impossible a ramener a la valeur d'origine. */
+function bumpStat(k,n){S.stats[k]=Math.max(1,Math.round((S.stats[k]+n)*100)/100)}
 
 /* ================= métabolisme ================= */
 const curW=()=>S.weights.length?S.weights[S.weights.length-1].v:null;
