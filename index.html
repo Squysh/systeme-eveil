@@ -289,6 +289,40 @@ canvas{width:100%;display:block}
 .prev li .tag{font-family:var(--f-disp);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;padding:1px 6px;border:1px solid var(--edge);color:var(--ink-3);flex:none}
 .prev li.dup{opacity:.45}
 
+/* --- tuiles de quete --- */
+.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{
+  position:relative;aspect-ratio:1;background:#0e1729;border:1px solid var(--edge);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  padding:8px;text-align:center;transition:border-color .2s,background .2s;
+}
+.tile.auto{border-left:2px solid var(--violet)}
+.tile.done{background:rgba(30,80,55,.2);border-color:rgba(74,222,128,.45)}
+.tile svg.ico{width:26px;height:26px;stroke:var(--cyan);fill:none;stroke-width:1.8}
+.tile.done svg.ico{stroke:var(--green)}
+.tile .n{font-family:var(--f-mono);font-size:1.7rem;line-height:1;font-variant-numeric:tabular-nums}
+.tile .n small{font-size:.8rem}
+.tile.done .n{color:var(--green)}
+.tile .lb{font-family:var(--f-disp);font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2)}
+.tile.done .lb{color:var(--green)}
+.tile .lock{position:absolute;top:9px;right:9px;width:12px;height:12px;stroke:var(--violet);fill:none;stroke-width:2.2}
+.tile .pts{position:absolute;top:8px;left:10px;font-family:var(--f-mono);font-size:.6rem;color:var(--ink-3)}
+.tile.done .pts{color:#2f4a3c}
+
+/* --- jauge heroique --- */
+.hero{display:grid;place-items:center;padding-top:4px}
+.hero svg{width:100%;max-width:300px;height:auto;display:block}
+.heronums{display:flex;justify-content:center;gap:22px;width:100%;margin-top:2px}
+.heronums > div{text-align:center}
+.heronums b{display:block;font-family:var(--f-mono);font-size:.95rem;font-weight:400;font-variant-numeric:tabular-nums}
+.heronums span{font-family:var(--f-mono);font-size:.52rem;color:var(--ink-3);letter-spacing:.12em}
+.heronums i{width:1px;background:var(--edge-soft);align-self:stretch}
+.mini{display:flex;flex-direction:column;gap:14px}
+.mini .row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
+.mini .row span:first-child{font-family:var(--f-disp);font-size:.66rem;letter-spacing:.18em;color:var(--ink-2)}
+.mini .row span:last-child{font-family:var(--f-mono);font-size:.78rem;font-variant-numeric:tabular-nums}
+.mini .bar{height:9px}
+
 /* --- bandeau d'alerte stockage --- */
 #alert{margin:12px 0;padding:12px 14px;border:1px solid var(--danger);
   background:rgba(60,12,22,.6);color:var(--ink);font-size:.85rem;display:none}
@@ -480,24 +514,21 @@ input.bad,select.bad{border-color:var(--danger)!important;box-shadow:0 0 10px rg
   <section class="screen" id="s-quests">
     <div class="panel">
       <h2>Quête journalière</h2>
-      <p class="tiny" style="margin-top:-6px" id="q-date"></p>
-      <div id="questlist"></div>
-      <div class="xpwrap">
-        <div class="xprow"><span>PROGRESSION DU JOUR</span><span id="q-count">0 / 8</span></div>
-        <div class="bar green"><i id="q-bar" style="width:0%"></i></div>
+      <div class="xprow" style="margin:-4px 0 12px">
+        <span id="q-date"></span><span id="q-count">0 / 8</span>
       </div>
+      <div class="bar green" style="margin-bottom:14px"><i id="q-bar" style="width:0%"></i></div>
+      <div class="qgrid" id="questlist"></div>
       <p class="tiny" id="q-warn"></p>
     </div>
 
     <div class="panel">
       <h2>Quêtes secondaires</h2>
-      <p class="muted" style="margin-top:0;font-size:.82rem">Bonus libres, sans pénalité.</p>
       <div id="sidelist"></div>
     </div>
 
     <div class="panel">
       <h2>Programme du corps</h2>
-      <p class="muted" style="margin-top:0;font-size:.82rem">Tout ce que tu valides s'accumule. Chaque palier franchi débloque un rang et durcit les quêtes du lendemain.</p>
       <div id="prog"></div>
     </div>
 
@@ -586,24 +617,24 @@ input.bad,select.bad{border-color:var(--danger)!important;box-shadow:0 0 10px rg
   <section class="screen" id="s-day">
     <div class="panel">
       <h2>Balance énergétique</h2>
-      <div class="gauge">
-        <canvas id="kcalring" width="104" height="104"></canvas>
-        <div class="g-txt">
-          <b id="k-eaten">0</b><span>kcal sur <em id="k-target">—</em></span>
-          <p id="k-verdict">Enregistre tes repas pour que le Système calcule.</p>
+      <div class="hero">
+        <svg viewBox="0 0 290 176" aria-labelledby="arc-lbl">
+          <title id="arc-lbl">Calories restantes</title>
+          <path d="M25 160 A120 120 0 0 1 265 160" fill="none" stroke="#0d1b2e" stroke-width="18" stroke-linecap="round"/>
+          <path id="k-arc" d="M25 160 A120 120 0 0 1 265 160" fill="none" stroke="#4ade80" stroke-width="18"
+            stroke-linecap="round" stroke-dasharray="377" stroke-dashoffset="377"/>
+          <text id="k-big" x="145" y="122" text-anchor="middle" fill="#e8f2ff"
+            font-family="IBM Plex Mono, monospace" font-size="54" font-weight="600">—</text>
+          <text id="k-cap" x="145" y="150" text-anchor="middle" fill="#5b708f"
+            font-family="Chakra Petch, sans-serif" font-size="12" letter-spacing="3">KCAL RESTANTES</text>
+        </svg>
+        <div class="heronums">
+          <div><b id="k-eaten">0</b><span>MANGÉ</span></div><i></i>
+          <div><b id="k-target">—</b><span>CIBLE</span></div><i></i>
+          <div><b id="k-pts">0</b><span>POINTS</span></div>
         </div>
       </div>
-      <div class="band" id="kband">
-        <div class="zone" id="kzone"></div>
-        <div class="cur" id="kcur" style="left:0"></div>
-      </div>
-      <div class="stats" style="margin-top:20px" id="kstats"></div>
-      <div class="xpwrap">
-        <div class="xprow"><span>POINTS DE DÉFICIT EN JEU</span><span id="dx-val">0 XP</span></div>
-        <div class="bar gold"><i id="dx-bar" style="width:0%"></i></div>
-      </div>
-      <p class="tiny" id="dx-note"></p>
-      <p class="tiny" id="k-note"></p>
+      <p class="tiny" id="dx-note" style="text-align:center;margin-top:14px"></p>
     </div>
 
     <div class="panel">
@@ -641,6 +672,11 @@ input.bad,select.bad{border-color:var(--danger)!important;box-shadow:0 0 10px rg
         <label class="field"><span>Premier repas aujourd'hui</span><input id="fa-start" type="time"></label>
       </div>
       <p class="tiny" id="fa-scale"></p>
+    </div>
+
+    <div class="panel">
+      <h2>Suivi du jour</h2>
+      <div class="mini" id="minibars"></div>
     </div>
 
     <div class="panel">
@@ -768,7 +804,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 60";
+const BUILD="24/08 · 70";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -1423,16 +1459,51 @@ function renderObjectifs(){
   $("#o-fnote").textContent=S.flexDone+" séances d'étirement · "+(S.flexTests.length?"dernier test : "+S.flexTests[S.flexTests.length-1].v+" cm":"aucun test enregistré");
 }
 
+/* Chaque quete devient une tuile : une icone, le chiffre a atteindre, le nom.
+   Le libelle explicatif ne sert plus qu'au message de verrouillage. */
+const ICO={
+  push:'<path d="M4 12h3M17 12h3M7 8v8M17 8v8M7 12h10"/>',
+  squat:'<circle cx="12" cy="5" r="2"/><path d="M12 7v5l-4 4v4M12 12l4 4v4"/>',
+  core:'<path d="M3 16h18M6 16v-3M18 16v-3"/><circle cx="8" cy="10" r="2"/>',
+  run:'<circle cx="15" cy="5" r="2"/><path d="M6 21l3-6 4-2 1-4-4 2-2 3M13 13l3 3 1 5"/>',
+  flex:'<circle cx="12" cy="4" r="2"/><path d="M12 6v7M12 13l-5 7M12 13l5 7M5 9l7 2 7-2"/>',
+  kcal:'<path d="M12 3c3 4 6 6 6 10a6 6 0 01-12 0c0-4 3-6 6-10z"/>',
+  water:'<path d="M12 3c3 4 6 6 6 10a6 6 0 01-12 0c0-4 3-6 6-10z"/>',
+  sleep:'<path d="M20 14a8 8 0 01-10-10 8 8 0 1010 10z"/>',
+  zone:'<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/>'
+};
+const LOCK='<svg class="lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="1.5"/><path d="M8 11V7a4 4 0 018 0v4"/></svg>';
+
+/* Le chiffre affiche : la cible pour une quete manuelle, l'avancement reel
+   pour une quete a preuve ou automatique. */
+function tileVal(q){
+  const t=today(),d=D(t);
+  if(q.id==="kcal"){const c=cible(t);return[nb(eaten(t)),c?"/ "+nb(c)+" kcal":"kcal"]}
+  if(q.id==="water")return[nb(d.water/1000,1),"/ "+nb(waterGoal()/1000,1)+" L"];
+  if(q.id==="sleep")return[d.sleep!==null?nb(d.sleep,1):"—","/ "+nb(S.sleepGoal,1)+" h"];
+  if(q.id==="run"){const f=S.runs.filter(r=>r.date===t).reduce((a,r)=>a+r.d,0);
+    return[nb(f,1),"/ "+nb(q.n,1)+" km"]}
+  if(q.id==="flex")return[nb((d.flexSec||0)/60,0),"/ "+q.n+" min"];
+  if(q.id==="core")return[q.n+'<small> s</small>',"gainage"];
+  if(q.id==="zone")return[q.n,"pénalité"];
+  return[q.n,q.id==="push"?"pompes":"squats"];
+}
 function renderQuests(){
   $("#q-date").textContent=new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"}).toUpperCase();
-  $("#questlist").innerHTML=S.quests.map(q=>
-    '<div class="quest'+(q.done?" done":"")+(q.grp==="auto"?" auto":"")+'" data-q="'+q.id+'"><div class="tick">✓</div><div class="txt"><b>'+q.t+"</b><small>"+q.s+"</small></div><div class=\"xp\">+"+q.xp+"</div></div>").join("");
+  $("#questlist").innerHTML=S.quests.map(q=>{
+    const v=tileVal(q);
+    const verrou=(q.grp==="auto"||q.proof)&&!q.done;
+    return '<div class="tile'+(q.done?" done":"")+(q.grp==="auto"?" auto":"")+'" data-q="'+q.id+'">'+
+      '<span class="pts">+'+q.xp+'</span>'+(verrou?LOCK:"")+
+      '<svg class="ico" viewBox="0 0 24 24">'+(ICO[q.id]||ICO.push)+'</svg>'+
+      '<div class="n">'+v[0]+'</div><div class="lb">'+v[1]+'</div></div>';
+  }).join("");
   $("#sidelist").innerHTML=S.side.map((q,i)=>
-    '<div class="quest'+(q.done?" done":"")+'" data-side="'+i+'"><div class="tick">✓</div><div class="txt"><b>'+q.t+"</b><small>"+q.s+"</small></div><div class=\"xp\">+"+q.xp+"</div></div>").join("");
+    '<div class="quest'+(q.done?" done":"")+'" data-side="'+i+'"><div class="tick">✓</div><div class="txt"><b>'+q.t+"</b></div><div class=\"xp\">+"+q.xp+"</div></div>").join("");
   const dn=S.quests.filter(q=>q.done).length;
   $("#q-count").textContent=dn+" / "+S.quests.length;
   $("#q-bar").style.width=(dn/S.quests.length*100)+"%";
-  $("#q-warn").textContent=dn===S.quests.length?"Quête journalière accomplie. Repos autorisé.":"Il reste "+(S.quests.length-dn)+" quête(s) avant minuit.";
+  $("#q-warn").textContent=dn===S.quests.length?"Quête journalière accomplie.":"Il reste "+(S.quests.length-dn)+" quête(s) avant minuit.";
 }
 
 function renderProg(){
@@ -1514,45 +1585,47 @@ function ring(cvs,pct,color,sub){
   x.fillText(Math.round(pct*100)+"%",cx,cy+5);
 }
 function renderDay(){
-  const t=today(),d=D(t),c=cible(t),m=maintien(t),e=eaten(t),b=baseBurn();
-  /* anneau calories */
+  const t=today(),d=D(t),c=cible(t),m=maintien(t),e=eaten(t);
+  /* jauge : ce qu'il reste a manger, en un seul chiffre */
+  const arc=$("#k-arc"),LONG=377;
   if(c){
-    const pct=e/c;
-    const col=!d.food.length?"#5b708f":Math.abs(e-c)<=150?"#4ade80":e>c+150?"#ff3b5c":"#ffc857";
-    ring("#kcalring",pct,col);
+    const reste=Math.round(c-e);
+    const pct=clamp(e/c,0,1);
+    const dep=e>c+150;
+    const bas=d.food.length&&e<c-150;
+    const col=!d.food.length?"#3fe0ff":dep?"#ff3b5c":bas?"#ffc857":"#4ade80";
+    arc.setAttribute("stroke",col);
+    arc.setAttribute("stroke-dashoffset",LONG*(1-pct));
+    arc.style.filter="drop-shadow(0 0 10px "+col+"88)";
+    $("#k-big").textContent=nb(Math.abs(reste));
+    $("#k-big").setAttribute("fill",dep?"#ff3b5c":"#e8f2ff");
+    $("#k-cap").textContent=reste>=0?"KCAL RESTANTES":"KCAL DE TROP";
     $("#k-eaten").textContent=nb(e);
-    $("#k-target").textContent=nb(c)+" kcal";
-    const diff=Math.round(e-c);
-    $("#k-verdict").textContent=!d.food.length?"Aucun repas enregistré aujourd'hui."
-      :Math.abs(diff)<=150?"Dans la fourchette. C'est exactement là qu'il faut être."
-      :diff>150?"Tu dépasses de "+nb(diff)+" kcal. Le déficit du jour est entamé."
-      :"Tu es "+nb(-diff)+" kcal sous la cible. Déficit trop agressif : tu perdras du muscle et tes séances vont se dégrader.";
-    /* bandeau */
-    const lo=c-150,hi=c+150,max=Math.max(m+300,e+200,c+600),min=Math.max(0,c-900);
-    const pos=v=>clamp((v-min)/(max-min)*100,0,100);
-    $("#kzone").style.left=pos(lo)+"%";
-    $("#kzone").style.width=(pos(hi)-pos(lo))+"%";
-    $("#kcur").style.left=pos(e)+"%";
-    $("#kband").querySelectorAll(".lbl").forEach(n=>n.remove());
-    [[c,"cible"],[m,"maintien"]].forEach(([v,l])=>{
-      const s=document.createElement("span");
-      s.className="lbl";s.style.left=pos(v)+"%";s.textContent=l+" "+nb(v);
-      $("#kband").appendChild(s);
-    });
-    const pg=proteinGoal()||140;
-    const pr=proteins(t);
-    $("#kstats").innerHTML=
-      '<div class="stat"><div class="k">Base hors sport</div><div class="v">'+nb(b)+'<em>kcal</em></div></div>'+
-      '<div class="stat"><div class="k">Dépense sport</div><div class="v">'+nb(sportBurn(t))+'<em>kcal</em></div></div>'+
-      '<div class="stat '+(pr>=pg?"ok":"")+'"><div class="k">Protéines</div><div class="v">'+nb(pr)+'<em>/'+pg+' g</em></div></div>'+
-      '<div class="stat"><div class="k">Il reste</div><div class="v">'+nb(Math.max(0,c-e))+'<em>kcal</em></div></div>';
-    $("#k-note").textContent="Maintien = métabolisme de base × 1,35 + dépense sport du jour. Cible = maintien − "+S.deficit+" kcal, soit environ "+nb(S.deficit*7/7700,2)+" kg par semaine.";
+    $("#k-target").textContent=nb(c);
+    $("#k-pts").textContent=deficitXP(t);
+    const def=Math.round(m-e);
+    $("#dx-note").textContent=!d.food.length?"Aucun repas enregistré. Les 40 points de déficit sont en jeu."
+      :def<=0?"Tu es au-dessus de ta dépense. Aucun point aujourd'hui."
+      :def<S.deficit*.6?"Déficit de "+nb(def)+" kcal, sous ta cible de "+S.deficit+"."
+      :def<=S.deficit*1.1?"Déficit de "+nb(def)+" kcal : la zone qui rapporte le maximum."
+      :"Déficit de "+nb(def)+" kcal, au-delà de ta cible. Sous-manger coûte du muscle.";
   }else{
-    ring("#kcalring",0,"#5b708f");
-    $("#k-eaten").textContent="—";$("#k-target").textContent="—";
-    $("#k-verdict").textContent="Enregistre une pesée dans Corps pour que le Système calcule ton métabolisme.";
-    $("#kstats").innerHTML="";$("#k-note").textContent="";
+    arc.setAttribute("stroke-dashoffset",LONG);
+    $("#k-big").textContent="—";$("#k-cap").textContent="AUCUNE PESÉE";
+    $("#k-eaten").textContent="0";$("#k-target").textContent="—";$("#k-pts").textContent="0";
+    $("#dx-note").textContent="Enregistre une pesée dans Corps pour que le Système calcule ta cible.";
   }
+  /* quatre barres, sans commentaire */
+  const pg=proteinGoal()||140,pr=proteins(t),wgoal=waterGoal(),fh=fastHours(t);
+  const barre=(nom,val,cible2,unite,pct,cls)=>
+    '<div><div class="row"><span>'+nom+'</span><span>'+val+' <span style="color:var(--ink-3)">/ '+cible2+' '+unite+'</span></span></div>'+
+    '<div class="bar '+cls+'"><i style="width:'+clamp(pct,0,100)+'%"></i></div></div>';
+  $("#minibars").innerHTML=
+    barre("EAU",nb(d.water/1000,1),nb(wgoal/1000,1),"L",d.water/wgoal*100,d.water>=wgoal?"green":"")+
+    barre("SOMMEIL",d.sleep!==null?nb(d.sleep,1):"—",nb(S.sleepGoal,1),"h",
+      (d.sleep||0)/S.sleepGoal*100,d.sleep!==null&&d.sleep>=S.sleepGoal-.25?"green":"gold")+
+    barre("JEÛNE",fh!==null?nb(fh,1):"—","16","h",(fh||0)/16*100,"violet")+
+    barre("PROTÉINES",nb(pr),nb(pg),"g",pr/pg*100,pr>=pg?"green":"gold");
   /* repas */
   $("#mealchips").innerHTML=MEALS.map(x=>'<button class="chip'+(x===curMeal?" on":"")+'" data-m="'+x+'">'+x+"</button>").join("");
   $("#meals").innerHTML=MEALS.map(mm=>{
@@ -1599,21 +1672,7 @@ function renderDay(){
     $("#sl-detail").innerHTML="";
     $("#sl-note").textContent="Enregistre ta nuit pour valider la quête correspondante.";
   }
-  /* points de déficit en jeu */
-  const dxp=deficitXP(t);
-  $("#dx-val").textContent=dxp+" XP / 40 XP";
-  $("#dx-bar").style.width=(dxp/40*100)+"%";
-  if(m&&d.food.length){
-    const def=Math.round(m-e);
-    $("#dx-note").textContent=def<=0
-      ?"Aucun déficit aujourd'hui : tu es au-dessus de ta dépense. 0 point."
-      :def<S.deficit*.6?"Déficit de "+nb(def)+" kcal, en dessous de ta cible de "+S.deficit+". Les points montent avec le déficit tenu."
-      :def<=S.deficit*1.1?"Déficit de "+nb(def)+" kcal : dans la zone qui rapporte le maximum."
-      :"Déficit de "+nb(def)+" kcal, au-delà de ta cible. Les points redescendent — sous-manger coûte du muscle.";
-  }else{$("#dx-note").textContent="Les points se verrouillent à la clôture de la journée, à minuit."}
-
   /* jeûne */
-  const fh=fastHours(t);
   ring("#fastring",fh?fh/16:0,fh===null?"#5b708f":fh>=16?"#4ade80":fh>=13?"#3fe0ff":"#ffc857");
   $("#fa-cur").textContent=fh===null?"—":hm(fh);
   $("#fa-end").value=D(prevDay(t)).eatEnd||"";
