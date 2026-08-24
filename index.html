@@ -764,7 +764,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 30";
+const BUILD="24/08 · 31";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const $=s=>document.querySelector(s);
@@ -2334,7 +2334,7 @@ $("#questlist").addEventListener("click",e=>{
     const t=today();
     if(q.id==="run"){
       const fait=S.runs.filter(r=>r.date===t).reduce((a,r)=>a+r.d,0);
-      toast("Quête verrouillée","Le Système exige la preuve : "+nb(fait,2)+" km sur "+q.n.toFixed(1)+
+      toast("Quête verrouillée","Le Système exige la preuve : "+nb(fait,2)+" km sur "+nb(q.n,1)+
         " enregistrés. Passe par l'onglet Course.","bad");
     }else{
       const fait=(D(t).flexSec||0)/60;
