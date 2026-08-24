@@ -201,6 +201,8 @@ canvas{width:100%;display:block}
 .hist{list-style:none;margin:0;padding:0;font-family:var(--f-mono);font-size:.76rem}
 .hist li{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--edge-soft);color:var(--ink-2);font-variant-numeric:tabular-nums;align-items:center}
 .hist li:last-child{border-bottom:0}
+.hist.stack li{flex-direction:column;align-items:flex-start;gap:3px}
+.hist.stack li span{color:var(--ink-3)}
 .hist li b{color:var(--ink);font-weight:600}
 .hist li .del{background:none;border:0;color:var(--ink-3);font-size:1.05rem;padding:0 3px;line-height:1}
 .hist li .del:hover{color:var(--danger)}
@@ -592,7 +594,7 @@ input.bad,select.bad{border-color:var(--danger)!important;box-shadow:0 0 10px rg
 
     <div class="panel">
       <h2>Dernières courses</h2>
-      <ul class="hist" id="runlist"></ul>
+      <ul class="hist stack" id="runlist"></ul>
     </div>
   </section>
 
@@ -820,7 +822,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 80";
+const BUILD="24/08 · 81";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
