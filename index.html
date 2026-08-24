@@ -762,7 +762,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 50";
+const BUILD="24/08 · 51";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -1349,7 +1349,7 @@ function render(){
     '<div class="stat"><div class="k">Points totaux</div><div class="v">'+Object.values(S.stats).reduce((a,b)=>a+b,0).toFixed(1)+'</div></div>';
   $("#statnote").textContent="Meilleure série : "+S.best+" jours · "+
     (S.fails?"échecs consécutifs : "+S.fails+" · prochaine sanction "+penaltyCost()+" XP":"aucun échec en cours")+
-    " · joueur depuis le "+fmtDate(S.created);
+    " · joueur depuis le "+fmtDate(S.created)+" · version "+BUILD;
   const SS=$("#stostate");
   if(SS)SS.textContent=({
     ok:"Stockage : vérifié. Ta progression tient entre deux ouvertures.",
