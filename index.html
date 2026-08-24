@@ -764,7 +764,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 21";
+const BUILD="24/08 · 30";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const $=s=>document.querySelector(s);
@@ -867,7 +867,7 @@ function D(d){
   d=d||today();
   if(!S.days[d])S.days[d]={food:[],water:0,sleep:null};
   const o=S.days[d];
-  o.food=o.food||[];o.water=o.water||0;
+  o.food=o.food||[];o.water=o.water||0;o.flexSec=o.flexSec||0;
   if(o.eatEnd===undefined)o.eatEnd=null;
   if(o.eatStart===undefined)o.eatStart=null;
   return o;
@@ -1050,8 +1050,10 @@ function genQuests(){
     {id:"push",grp:"phys",n:push,t:"Pompes ×"+push,s:"Séries libres, poitrine au sol",xp:18,st:["FOR",.35],done:false},
     {id:"squat",grp:"phys",n:squat,t:"Squats ×"+squat,s:"Cuisses parallèles, dos droit",xp:18,st:["FOR",.3],done:false},
     {id:"core",grp:"phys",n:core,t:"Gainage "+core+" s",s:"Cumul planche + gainage latéral",xp:16,st:["END",.3],done:false},
-    {id:"run",grp:"phys",t:"Course "+km.toFixed(1)+" km",s:"Se valide en enregistrant une course",xp:26,st:["END",.4],done:false},
-    {id:"flex",grp:"phys",t:"Étirements "+flex+" min",s:"Se valide en finissant une routine",xp:16,st:["SOU",.5],done:false},
+    {id:"run",grp:"phys",proof:1,n:km,t:"Course "+km.toFixed(1)+" km",
+     s:"Verrouillée : se valide seule quand tu as couru la distance",xp:26,st:["END",.4],done:false},
+    {id:"flex",grp:"phys",proof:1,n:flex,t:"Étirements "+flex+" min",
+     s:"Verrouillée : se valide seule au temps réellement tenu en séance",xp:16,st:["SOU",.5],done:false},
     {id:"kcal",grp:"auto",t:"Rester dans la cible calorique",s:"Fourchette ±150 kcal autour de la cible",xp:22,st:["DIS",.3],done:false},
     {id:"water",grp:"auto",t:"Atteindre le quota d'eau",s:"Calculé sur ton poids et tes séances",xp:14,st:["DIS",.2],done:false},
     {id:"sleep",grp:"auto",t:"Dormir assez",s:"Cible de sommeil du profil",xp:20,st:["END",.25],done:false}
@@ -1127,6 +1129,10 @@ function autoQuests(){
   if(c&&d.food.length&&Math.abs(e-c)<=150)finishQuest("kcal",true);
   if(d.water>=waterGoal())finishQuest("water",true);
   if(d.sleep!==null&&d.sleep>=S.sleepGoal-0.25)finishQuest("sleep",true);
+  const qr=S.quests.find(q=>q.id==="run");
+  if(qr&&!qr.done&&S.runs.filter(r=>r.date===t).reduce((a,r)=>a+r.d,0)>=qr.n)finishQuest("run",true);
+  const qf=S.quests.find(q=>q.id==="flex");
+  if(qf&&!qf.done&&(d.flexSec||0)>=qf.n*60)finishQuest("flex",true);
 }
 
 /* ================= titres ================= */
@@ -1718,7 +1724,12 @@ function renderRoutine(){
   const list=ROUTINES[R.key];
   $("#stretchlist").innerHTML=list.map((s,i)=>
     '<li class="'+(i<R.i?"past":i===R.i&&R.run?"cur":"")+'"><span>'+String(i+1).padStart(2,"0")+"</span><span>"+s[0]+" · "+s[1]+" s</span></li>").join("");
-  if(!R.run)$("#t-of").textContent=list.length+" postures · "+Math.round(list.reduce((a,s)=>a+s[1],0)/60)+" min au total";
+  if(!R.run){
+    const q=S.quests.find(x=>x.id==="flex");
+    const fait=(D().flexSec||0)/60;
+    $("#t-of").textContent=list.length+" postures · "+Math.round(list.reduce((a,s)=>a+s[1],0)/60)+" min"+
+      (q?" · aujourd'hui "+nb(fait,1)+" / "+q.n+" min":"");
+  }
 }
 function paintTimer(){
   const list=ROUTINES[R.key],s=list[R.i];if(!s)return;
@@ -1730,6 +1741,7 @@ function paintTimer(){
 }
 function flexTick(){
   const list=ROUTINES[R.key];R.left--;
+  D().flexSec=(D().flexSec||0)+1;
   if(R.left<=0){R.i++;
     if(R.i>=list.length)return flexEnd();
     R.left=list[R.i][1];if(navigator.vibrate)navigator.vibrate(120);}
@@ -1755,7 +1767,7 @@ function flexEnd(){
   $("#t-cue").textContent="Les gains de souplesse viennent de la répétition, pas de l'intensité. Reviens demain.";
   $("#t-clock").textContent="00:00";$("#t-bar").style.width="100%";
   S.flexDone++;bumpStat("SOU",.5);gainXP(20,"Séance de souplesse terminée.");
-  finishQuest("flex",true);
+  autoQuests();
   logIt("Séance de souplesse ("+R.key+")");
   toast("Séance validée","+20 XP · Souplesse +0,5","gold");
   checkAch();render();renderRoutine();
@@ -2153,7 +2165,6 @@ function doImport(){
   if(nm)parts.push(nm+" repas");
   if(nj)parts.push(nj+" jeûne"+(nj>1?"s":""));
   if(!parts.length){toast("Rien à importer","Tout était déjà enregistré.","bad");return}
-  if(nr&&S.runs.some(r=>r.date===today()))finishQuest("run",true);
   logIt("Import : "+parts.join(", "));
   toast("Import terminé",parts.join(" · ")+" ajouté(s).","gold");
   PENDING=[];$("#prev").innerHTML="";$("#b-import").disabled=true;
@@ -2315,8 +2326,21 @@ $("#b-init").addEventListener("click",()=>{
 $("#questlist").addEventListener("click",e=>{
   const el=e.target.closest("[data-q]");if(!el)return;
   const q=S.quests.find(x=>x.id===el.dataset.q);
-  if(q&&q.grp==="auto"&&!q.done){
-    toast("Quête automatique","Celle-ci se valide seule dès que le suivi correspondant atteint sa cible, dans l'onglet Journée.","bad");
+  if(q&&!q.done&&q.grp==="auto"){
+    toast("Quête verrouillée","Elle se valide seule dès que le suivi correspondant atteint sa cible, dans l'onglet Journée.","bad");
+    return;
+  }
+  if(q&&!q.done&&q.proof){
+    const t=today();
+    if(q.id==="run"){
+      const fait=S.runs.filter(r=>r.date===t).reduce((a,r)=>a+r.d,0);
+      toast("Quête verrouillée","Le Système exige la preuve : "+nb(fait,2)+" km sur "+q.n.toFixed(1)+
+        " enregistrés. Passe par l'onglet Course.","bad");
+    }else{
+      const fait=(D(t).flexSec||0)/60;
+      toast("Quête verrouillée","Le Système exige la preuve : "+nb(fait,1)+" min sur "+q.n+
+        " tenues en séance. Passe par l'onglet Souple.","bad");
+    }
     return;
   }
   if(finishQuest(el.dataset.q)){checkAch();render()}
@@ -2341,7 +2365,6 @@ $("#b-run").addEventListener("click",()=>{
   const xp=runXP(nr);
   bumpStat("END",d*.12+(dp||0)*.002);bumpStat("VIT",runVIT(nr));
   gainXP(xp,"Course enregistrée.");
-  finishQuest("run",true);
   logIt("Course "+nb(d,2)+" km en "+fmtTime(t));
   toast("Course enregistrée",nb(d,2)+" km à "+fmtTime(t/d)+"/km · +"+xp+" XP");
   $("#r-d").value=$("#r-m").value=$("#r-s").value=$("#r-dp").value=$("#r-hr").value="";
