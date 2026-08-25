@@ -802,8 +802,8 @@ POIDS   | 2026-08-23 | 96.7 | mg=26.8 | mm=39.7 | visc=11 | tmb=2099
 SOMMEIL | 2026-08-23 | 7:25 | score=92 | profond=1:42 | rem=1:56 | fc=55 | vfc=85 | bb=74
 EAU     | 2026-08-23 | 2.0
 JEUNE   | 2026-08-23 | 20:30 | 08:15
-REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45</pre>
-        <p class="tiny" style="margin:8px 0 0">Une ligne par élément, « auj » pour aujourd'hui. Une course prend la distance et le temps totaux, puis le type (endurance, tempo, fractionné, trail) et des champs facultatifs : <b>dp</b> dénivelé positif, <b>fc</b> fréquence cardiaque moyenne, <b>cad</b> cadence, <b>kcal</b> calories de la montre, et <b>bloc</b> = distance/temps de la partie courue, hors échauffement et récupération. Le bloc seul sert à projeter le chrono sur 5 km ; le total sert au volume et aux calories.</p>
+REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
+        <p class="tiny" style="margin:8px 0 0">Une ligne par élément, « auj » pour aujourd'hui. Une course prend la distance et le temps totaux, puis le type (endurance, tempo, fractionné, trail) et des champs facultatifs : <b>dp</b> dénivelé positif, <b>fc</b> fréquence cardiaque moyenne, <b>cad</b> cadence, <b>kcal</b> calories de la montre, et <b>bloc</b> = distance/temps de la partie courue, hors échauffement et récupération. Le bloc seul sert à projeter le chrono sur 5 km ; le total sert au volume et aux calories. Un repas prend le nom, les kcal, puis en facultatif les grammes de <b>protéines</b> et de <b>lipides</b>. Les types <b>marche</b> et <b>vélo</b> sont acceptés comme une course.</p>
       </details>
       <div class="drop" id="drop">
         <b>Déposer un fichier</b>
@@ -844,7 +844,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 100";
+const BUILD="24/08 · 110";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -1034,6 +1034,9 @@ function maintien(d){const b=baseBurn();return b?b+sportBurn(d):null}
 function cible(d){const m=maintien(d);return m?m-S.deficit:null}
 function eaten(d){return D(d).food.reduce((a,f)=>a+f.k,0)}
 function proteins(d){return D(d).food.reduce((a,f)=>a+(f.p||0),0)}
+function fats(d){return D(d).food.reduce((a,f)=>a+(f.f||0),0)}
+/* Part des calories venant des lipides. Au-dela de 35 % la journee est grasse. */
+function fatPct(d){const e=eaten(d);return e?fats(d)*9/e:0}
 function waterGoal(){
   const w=curW()||75;
   return Math.round((w*35+(S.runs.some(r=>r.date===today())?600:0))/50)*50;
@@ -1126,12 +1129,19 @@ function penaltyCost(n){
   return Math.round(Math.min(c.base*Math.pow(c.mult,i),250));
 }
 /* Manger au-dessus de sa dépense coûte des points dans les modes durs. */
+/* Tant que la journee est en deficit, rien n'est du : c'est le deficit qui
+   compte, pas la composition. Des que le deficit disparait, le depassement
+   coute des points, et une journee tres grasse en coute davantage. */
 function surplusCost(d){
+  d=d||today();
   const c=sev();
-  if(!c.surplus||restOn())return 0;
+  if(!c.surplus)return 0;
   const m=maintien(d),e=eaten(d);
   if(!m||!D(d).food.length||e<=m)return 0;
-  return Math.min(60,Math.round((e-m)/c.surplus));
+  let cost=Math.min(60,Math.round((e-m)/c.surplus));
+  const pct=fatPct(d);
+  if(pct>.35)cost+=Math.min(40,Math.round((pct-.35)*200));
+  return cost;
 }
 /* Retire des XP, et fait redescendre d'un niveau si le mode l'autorise. */
 function loseXP(n){
@@ -1724,6 +1734,8 @@ function renderDay(){
       :def<S.deficit*.6?"Déficit de "+nb(def)+" kcal, sous ta cible de "+S.deficit+"."
       :def<=S.deficit*1.1?"Déficit de "+nb(def)+" kcal : la zone qui rapporte le maximum."
       :"Déficit de "+nb(def)+" kcal, au-delà de ta cible. Sous-manger coûte du muscle.";
+    if(surplusCost(t))$("#dx-note").textContent="Plus de déficit, et "+
+      Math.round(fatPct(t)*100)+" % des calories viennent du gras : −"+surplusCost(t)+" XP à minuit.";
   }else{
     arc.setAttribute("stroke-dashoffset",LONG);
     $("#k-big").textContent="—";$("#k-cap").textContent="AUCUNE PESÉE";
@@ -1740,7 +1752,9 @@ function renderDay(){
     barre("SOMMEIL",d.sleep!==null?nb(d.sleep,1):"—",nb(S.sleepGoal,1),"h",
       (d.sleep||0)/S.sleepGoal*100,d.sleep!==null&&d.sleep>=S.sleepGoal-.25?"green":"gold")+
     barre("JEÛNE",fh!==null?nb(fh,1):"—","16","h",(fh||0)/16*100,"violet")+
-    barre("PROTÉINES",nb(pr),nb(pg),"g",pr/pg*100,pr>=pg?"green":"gold");
+    barre("PROTÉINES",nb(pr),nb(pg),"g",pr/pg*100,pr>=pg?"green":"gold")+
+    barre("LIPIDES",nb(fats(t)),Math.round(fatPct(t)*100),"% des kcal",
+      fatPct(t)/.35*100,fatPct(t)>.35?"red":"green");
   /* repas */
   $("#mealchips").innerHTML=MEALS.map(x=>'<button class="chip'+(x===curMeal?" on":"")+'" data-m="'+x+'">'+x+"</button>").join("");
   $("#meals").innerHTML=MEALS.map(mm=>{
@@ -2271,7 +2285,8 @@ function fromSync(text,src){
       const n=(p[3]||"Repas").slice(0,60);
       const kc=Math.round(parseFloat(String(p[4]).replace(",",".")));
       const pr=Math.round(parseFloat(String(p[5]||"0").replace(",","."))||0);
-      if(kc>0&&kc<6000)out.push({k:"m",d:d,meal:meal,n:n,v:kc,p:pr,src:src});
+      const li=Math.round(parseFloat(String(p[6]||"0").replace(",","."))||0);
+      if(kc>0&&kc<6000)out.push({k:"m",d:d,meal:meal,n:n,v:kc,p:pr,f:li,src:src});
     }
   });
   return out;
@@ -2372,7 +2387,7 @@ function doImport(){
       nj++;
     }
     if(it.k==="m"){
-      D(it.d).food.push({i:Date.now()+Math.random(),n:it.n,m:it.meal,q:0,k:it.v,p:it.p||0,c:0,f:0});
+      D(it.d).food.push({i:Date.now()+Math.random(),n:it.n,m:it.meal,q:0,k:it.v,p:it.p||0,c:0,f:it.f||0});
       nm++;gainXP(3,"Repas importé.");
     }
   });
