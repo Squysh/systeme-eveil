@@ -846,7 +846,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 120";
+const BUILD="24/08 · 121";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -2265,6 +2265,32 @@ function fromSync(text,src){
     if(!SYNCRE.test(l))return;
     const p=l.split("|").map(s=>s.trim());
     const kind=norm(p[0]);
+    if(kind==="repos"||kind==="reglage"){
+      /* REPOS | off  n'a pas de date : ce controle ne doit pas s'appliquer ici */
+      if(kind==="repos"){
+        if(/^(off|non|stop|fin)$/i.test(String(p[1]||"").trim())){
+          out.push({k:"rep",off:true,src:src});
+        }else{
+          const jour=/^auj/i.test(p[1]||"")?today():parseDay(p[1]);
+          const a=norm(String(p[2]||"marche")).trim();
+          const act=/velo|bike|cycl/.test(a)?"velo":/course|run/.test(a)?"course":"marche";
+          const km=Math.max(.5,parseFloat(String(p[3]||"2").replace(",","."))||2);
+          if(jour)out.push({k:"rep",off:false,until:jour,act:act,km:km,src:src});
+        }
+      }else{
+        const o={};
+        p.slice(1).forEach(f=>{
+          const mm=String(f).match(/^([^=]{1,14})=(.+)$/); if(!mm)return;
+          const k2=norm(mm[1]).trim(),v=mm[2].trim();
+          if(/^sommeil/.test(k2))o.sleepGoal=parseFloat(v.replace(",","."));
+          else if(/^prot/.test(k2))o.protPerKg=parseFloat(v.replace(",","."));
+          else if(/^defic/.test(k2))o.deficit=parseInt(v,10);
+          else if(/^sever/.test(k2))o.severity=/impit/.test(norm(v))?"impitoyable":/norm/.test(norm(v))?"normal":"severe";
+        });
+        if(Object.keys(o).length)out.push({k:"cfg",cfg:o,src:src});
+      }
+      return;
+    }
     const d=/^auj/i.test(p[1]||"")?today():parseDay(p[1]);
     if(!d)return;
     if(kind==="course"){
@@ -2278,31 +2304,6 @@ function fromSync(text,src){
       const v=parseSleep(p[2]);
       if(v&&v>=2&&v<=16)out.push(Object.assign({k:"s",d:d,v:Math.round(v*100)/100,src:src},
         sleepExtras(p.slice(3))));
-    }else if(kind==="repos"){
-      /* REPOS | off   ou   REPOS | 2026-08-31 | marche | 2 */
-      if(/^(off|non|stop|fin)$/i.test(String(p[1]||"").trim())){
-        out.push({k:"rep",off:true,src:src});
-      }else{
-        const jour=/^auj/i.test(p[1]||"")?today():parseDay(p[1]);
-        const a=norm(String(p[2]||"marche")).trim();
-        const act=/velo|bike|cycl/.test(a)?"velo":/course|run/.test(a)?"course":"marche";
-        const km=Math.max(.5,parseFloat(String(p[3]||"2").replace(",","."))||2);
-        if(jour)out.push({k:"rep",off:false,until:jour,act:act,km:km,src:src});
-      }
-      return;
-    }else if(kind==="reglage"){
-      /* REGLAGE | sommeil=7 | proteines=1.4 | deficit=400 | severite=severe */
-      const o={};
-      p.slice(1).forEach(f=>{
-        const mm=String(f).match(/^([^=]{1,14})=(.+)$/); if(!mm)return;
-        const k2=norm(mm[1]).trim(),v=mm[2].trim();
-        if(/^sommeil/.test(k2))o.sleepGoal=parseFloat(v.replace(",","."));
-        else if(/^prot/.test(k2))o.protPerKg=parseFloat(v.replace(",","."));
-        else if(/^defic/.test(k2))o.deficit=parseInt(v,10);
-        else if(/^sever/.test(k2))o.severity=/impit/.test(norm(v))?"impitoyable":/norm/.test(norm(v))?"normal":"severe";
-      });
-      if(Object.keys(o).length)out.push({k:"cfg",cfg:o,src:src});
-      return;
     }else if(kind==="jeune"){
       const a=String(p[2]||"").trim(),b=String(p[3]||"").trim();
       if(/^\d{1,2}:\d{2}$/.test(a)&&/^\d{1,2}:\d{2}$/.test(b))
@@ -2378,7 +2379,7 @@ function showPreview(items){
       :it.k==="m"?it.n+" — "+nb(it.v)+" kcal"+(it.p?" · "+it.p+" g prot":"")+" ("+it.meal+")"
       :nb(it.v,2).replace(".",",")+" h";
     return '<li class="'+(dup?"dup":"")+'"><input type="checkbox" data-i="'+i+'"'+(dup?"":" checked")+'>'+
-      '<span class="tag">'+lbl[it.k]+"</span><b>"+txt+"</b><span style=\"margin-left:auto\">"+fmtDate(it.d)+(dup?" · déjà là":"")+"</span></li>";
+      '<span class="tag">'+lbl[it.k]+"</span><b>"+txt+"</b><span style=\"margin-left:auto\">"+(it.d?fmtDate(it.d):"")+(dup?" · déjà là":"")+"</span></li>";
   }).join("");
   const n=PENDING.filter(it=>!isDup(it)).length;
   $("#b-import").disabled=n===0;
