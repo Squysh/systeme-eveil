@@ -857,7 +857,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 200";
+const BUILD="24/08 · 201";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -1201,14 +1201,14 @@ function zoneQuest(){
 function genQuests(){
   const L=S.lvl,F=S.stats.FOR;
   const k=1+sev().durcit*Math.min(S.fails,4);
-  const push=Math.max(5,Math.min(150,Math.round((12+L*2.2+F*.5)*k*ch)));
-  const squat=Math.max(5,Math.min(180,Math.round((18+L*2.6+F*.5)*k*ch)));
-  const core=Math.max(15,Math.min(360,Math.round((35+L*6)*k*ch)));
   const repos=restOn();
   const act=repos?(S.rest.act||"marche"):"course";
   /* La charge allege le renforcement : des courbatures ne se soignent pas en
      arretant, mais en reduisant le volume. */
   const ch=repos?clamp(+S.rest.charge||1,.2,1):1;
+  const push=Math.max(5,Math.min(150,Math.round((12+L*2.2+F*.5)*k*ch)));
+  const squat=Math.max(5,Math.min(180,Math.round((18+L*2.6+F*.5)*k*ch)));
+  const core=Math.max(15,Math.min(360,Math.round((35+L*6)*k*ch)));
   const km=repos?Math.max(.5,+S.rest.km||2)
                 :Math.min(12,Math.round((1.5+L*.22+S.fit*.6)*k*10)/10);
   const flex=Math.min(20,8+Math.round(L*.35));
