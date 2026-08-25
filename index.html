@@ -846,7 +846,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 130";
+const BUILD="24/08 · 140";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -1155,8 +1155,14 @@ function loseXP(n){
 function zoneQuest(){
   const f=Math.min(S.fails,5);
   const push=Math.min(150,25+S.lvl*3+f*12);
+  /* en repos la sanction ne peut pas exiger de courir : elle double le renfort */
+  if(restOn()){
+    const p2=Math.min(200,push*2);
+    return {id:"zone",grp:"penalty",n:p2,t:"Zone de pénalité : "+p2+" pompes",
+      s:"Sanction du jour, sans impact pour ta blessure.",xp:30,st:["FOR",.5],done:false};
+  }
   const km=Math.min(8,Math.round((1+f*.5)*10)/10);
-  return {id:"zone",grp:"penalty",n:push,t:"Zone de pénalité : "+push+" pompes + "+km.toFixed(1)+" km",
+  return {id:"zone",grp:"penalty",n:push,t:"Zone de pénalité : "+push+" pompes + "+nb(km,1)+" km",
     s:"Sanction du jour. Elle ne disparaît qu'une fois faite.",xp:30,st:["FOR",.5],done:false};
 }
 
@@ -1275,10 +1281,10 @@ function unfinishQuest(id){
 /* Regenere les quetes du jour en conservant ce qui est deja valide. */
 function recalibrerQuetes(){
   const faites=S.quests.filter(q=>q.done).map(q=>q.id);
-  const zone=S.quests.find(q=>q.id==="zone");
+  const avaitZone=S.quests.some(q=>q.id==="zone");
   S.quests=genQuests();
+  if(avaitZone)S.quests.push(zoneQuest());
   S.quests.forEach(q=>{if(faites.indexOf(q.id)>=0)q.done=true});
-  if(zone)S.quests.push(zone);
   autoQuests();
 }
 function healQuests(){
