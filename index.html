@@ -330,6 +330,11 @@ canvas{width:100%;display:block}
 #alert{margin:12px 0;padding:12px 14px;border:1px solid var(--danger);
   background:rgba(60,12,22,.6);color:var(--ink);font-size:.85rem;display:none}
 #alert.on{display:block}
+#restban{margin:12px 0;padding:11px 14px;border:1px solid var(--gold);
+  background:rgba(60,45,10,.5);color:var(--ink-2);font-size:.82rem;display:none}
+#restban.on{display:block}
+#restban b{display:block;font-family:var(--f-disp);font-size:.7rem;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--gold);margin-bottom:5px}
 #alert b{display:block;font-family:var(--f-disp);font-size:.7rem;letter-spacing:.2em;
   text-transform:uppercase;color:var(--danger);margin-bottom:5px}
 #alert code{font-family:var(--f-mono);font-size:.78rem;color:var(--gold)}
@@ -372,6 +377,7 @@ input.bad,select.bad{border-color:var(--danger)!important;box-shadow:0 0 10px rg
 <div class="app">
 
   <div id="alert" role="alert"></div>
+  <div id="restban"></div>
 
   <!-- ============ ÉVEIL ============ -->
   <section class="screen" id="s-init">
@@ -479,6 +485,19 @@ input.bad,select.bad{border-color:var(--danger)!important;box-shadow:0 0 10px rg
         </select></label>
         <label class="field"><span>Sommeil visé (h)</span><input id="p-sleep" type="number" step="0.25" inputmode="decimal"></label>
       </div>
+      <label class="field"><span>Mode repos</span><select id="p-rest">
+        <option value="0">Inactif — entraînement normal</option>
+        <option value="1">Actif — blessure ou récupération</option>
+      </select></label>
+      <div class="grid3" id="restcfg">
+        <label class="field"><span>Activité</span><select id="p-ract">
+          <option value="marche">Marche</option>
+          <option value="velo">Vélo</option>
+          <option value="course">Course</option>
+        </select></label>
+        <label class="field"><span>Distance km</span><input id="p-rkm" type="number" step="0.5" inputmode="decimal"></label>
+        <label class="field"><span>Jusqu'au</span><input id="p-runtil" type="date"></label>
+      </div>
       <label class="field"><span>Cible protéines</span><select id="p-prot">
         <option value="1.4">1,4 g/kg de masse maigre — plancher, quand le choix est limité</option>
         <option value="1.6">1,6 g/kg — suffisant pour protéger le muscle</option>
@@ -551,6 +570,8 @@ input.bad,select.bad{border-color:var(--danger)!important;box-shadow:0 0 10px rg
           <option value="tempo">Tempo</option>
           <option value="fractionne">Fractionné</option>
           <option value="trail">Trail</option>
+          <option value="marche">Marche</option>
+          <option value="velo">Vélo</option>
         </select></label>
       </div>
       <div class="grid2">
@@ -823,7 +844,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 91";
+const BUILD="24/08 · 100";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -850,6 +871,7 @@ const blank=()=>({
   weights:[],runs:[],flexTests:[],flexDone:0,
   days:{},customFoods:[],
   severity:"severe",fails:0,pending:null,worstFails:0,dayBonus:0,protPerKg:1.6,
+  rest:{on:false,until:null,act:"marche",km:2},
   totals:{push:0,squat:0,core:0},
   log:[],ach:[],created:today()
 });
@@ -994,10 +1016,12 @@ function proteinGoal(){
 function baseBurn(){const b=bmr();return b?Math.round(b*1.35):null}
 /* Dépense d'une sortie : la valeur de la montre si elle est fournie, sinon
    0,95 kcal par kg et par km, plus le coût de la montée (0,0093 kcal/kg/m). */
+const BURN={course:.95,endurance:.95,tempo:.95,fractionne:.95,trail:.95,marche:.53,velo:.28};
 function runBurn(r){
   const w=curW()||75;
   if(r.kcal)return r.kcal;
-  return Math.round(r.d*w*.95+(r.dp||0)*w*.0093);
+  const f=BURN[r.type]!==undefined?BURN[r.type]:.95;
+  return Math.round(r.d*w*f+(r.dp||0)*w*.0093);
 }
 function sportBurn(d){
   d=d||today();const w=curW()||75;
@@ -1015,11 +1039,29 @@ function waterGoal(){
   return Math.round((w*35+(S.runs.some(r=>r.date===today())?600:0))/50)*50;
 }
 
+/* ---------- mode repos ----------
+   Une blessure ne doit pas etre sanctionnee. Le mode remplace la course par
+   l'activite choisie, reduit la distance, et retire les points de deficit :
+   le suivi continue, mais il ne rapporte ni ne coute plus rien. */
+const ACT={marche:"Marche",velo:"Vélo",course:"Course"};
+const ACT_TYPES={marche:["marche"],velo:["velo"],course:["endurance","tempo","fractionne","trail"]};
+function restOn(){
+  const r=S.rest;
+  return !!(r&&r.on&&(!r.until||today()<=r.until));
+}
+function distDuJour(act,d){
+  d=d||today();
+  const ok=ACT_TYPES[act]||ACT_TYPES.course;
+  return S.runs.filter(r=>r.date===d&&ok.indexOf(r.type||"endurance")>=0)
+               .reduce((a,r)=>a+r.d,0);
+}
+
 /* ---------- points de déficit ----------
    Le déficit visé rapporte le maximum. Trop peu ne rapporte presque rien,
    trop rapporte moins aussi : sous-manger coûte du muscle. */
 function deficitXP(d){
   d=d||today();
+  if(restOn())return 0;
   const dd=D(d),m=maintien(d);
   if(!m||!dd.food.length)return 0;
   const def=m-dd.food.reduce((a,f)=>a+f.k,0);
@@ -1086,7 +1128,7 @@ function penaltyCost(n){
 /* Manger au-dessus de sa dépense coûte des points dans les modes durs. */
 function surplusCost(d){
   const c=sev();
-  if(!c.surplus)return 0;
+  if(!c.surplus||restOn())return 0;
   const m=maintien(d),e=eaten(d);
   if(!m||!D(d).food.length||e<=m)return 0;
   return Math.min(60,Math.round((e-m)/c.surplus));
@@ -1117,20 +1159,26 @@ function genQuests(){
   const push=Math.min(150,Math.round((12+L*2.2+F*.5)*k));
   const squat=Math.min(180,Math.round((18+L*2.6+F*.5)*k));
   const core=Math.min(360,Math.round((35+L*6)*k));
-  const km=Math.min(12,Math.round((1.5+L*.22+S.fit*.6)*k*10)/10);
+  const repos=restOn();
+  const act=repos?(S.rest.act||"marche"):"course";
+  const km=repos?Math.max(.5,+S.rest.km||2)
+                :Math.min(12,Math.round((1.5+L*.22+S.fit*.6)*k*10)/10);
   const flex=Math.min(20,8+Math.round(L*.35));
-  return [
+  const q=[
     {id:"push",grp:"phys",n:push,t:"Pompes ×"+push,s:"Séries libres, poitrine au sol",xp:18,st:["FOR",.35],done:false},
     {id:"squat",grp:"phys",n:squat,t:"Squats ×"+squat,s:"Cuisses parallèles, dos droit",xp:18,st:["FOR",.3],done:false},
     {id:"core",grp:"phys",n:core,t:"Gainage "+core+" s",s:"Cumul planche + gainage latéral",xp:16,st:["END",.3],done:false},
-    {id:"run",grp:"phys",proof:1,n:km,t:"Course "+km.toFixed(1)+" km",
-     s:"Verrouillée : se valide seule quand tu as couru la distance",xp:26,st:["END",.4],done:false},
+    {id:"run",grp:"phys",proof:1,n:km,act:act,t:ACT[act]+" "+nb(km,1)+" km",
+     s:"Verrouillée : se valide seule à la distance enregistrée",
+     xp:repos?16:26,st:["END",repos?.25:.4],done:false},
     {id:"flex",grp:"phys",proof:1,n:flex,t:"Étirements "+flex+" min",
      s:"Verrouillée : se valide seule au temps réellement tenu en séance",xp:16,st:["SOU",.5],done:false},
     {id:"kcal",grp:"auto",t:"Rester dans la cible calorique",s:"Fourchette ±150 kcal autour de la cible",xp:22,st:["DIS",.3],done:false},
     {id:"water",grp:"auto",t:"Atteindre le quota d'eau",s:"Calculé sur ton poids et tes séances",xp:14,st:["DIS",.2],done:false},
     {id:"sleep",grp:"auto",t:"Dormir assez",s:"Cible de sommeil du profil",xp:20,st:["END",.25],done:false}
   ];
+  /* en repos la cible calorique ne se juge plus : le suivi continue sans enjeu */
+  return repos?q.filter(x=>x.id!=="kcal"):q;
 }
 const SIDE=[
   {id:"prot",t:"Atteindre la cible protéines",s:"Réglable dans les paramètres",xp:12,st:["FOR",.2]},
@@ -1236,7 +1284,7 @@ function autoQuests(){
   if(d.water>=waterGoal())finishQuest("water",true);
   if(d.sleep!==null&&d.sleep>=S.sleepGoal-0.25)finishQuest("sleep",true);
   const qr=S.quests.find(q=>q.id==="run");
-  if(qr&&!qr.done&&S.runs.filter(r=>r.date===t).reduce((a,r)=>a+r.d,0)>=qr.n)finishQuest("run",true);
+  if(qr&&!qr.done&&distDuJour(qr.act||"course",t)>=qr.n)finishQuest("run",true);
   const qf=S.quests.find(q=>q.id==="flex");
   if(qf&&!qf.done&&(d.flexSec||0)>=qf.n*60)finishQuest("flex",true);
 }
@@ -1431,6 +1479,15 @@ function render(){
   $("#statnote").textContent="Meilleure série : "+S.best+" jours · "+
     (S.fails?"échecs consécutifs : "+S.fails+" · prochaine sanction "+penaltyCost()+" XP":"aucun échec en cours")+
     " · joueur depuis le "+fmtDate(S.created)+" · version "+BUILD;
+  const RB=$("#restban");
+  if(RB){
+    if(restOn()){
+      RB.classList.add("on");
+      RB.innerHTML="<b>Mode repos</b>"+ACT[S.rest.act]+" "+nb(S.rest.km,1)+
+        " km au lieu de la course · les calories sont suivies mais ne rapportent ni ne coûtent de points"+
+        (S.rest.until?" · jusqu'au "+fmtDate(S.rest.until):"");
+    }else RB.classList.remove("on");
+  }
   const SS=$("#stostate");
   if(SS)SS.textContent=({
     ok:"Stockage : vérifié. Ta progression tient entre deux ouvertures.",
@@ -1453,6 +1510,12 @@ function render(){
   renderQuests();renderProg();renderRun();renderFlexHist();renderDay();renderBody();
   $("#p-wt").value=S.goalW;$("#p-goalpace").value=S.goalPace;
   $("#p-def").value=S.deficit;$("#p-sleep").value=S.sleepGoal;$("#p-sev").value=S.severity;$("#p-prot").value=S.protPerKg;
+  const R=S.rest||{};
+  $("#p-rest").value=R.on?"1":"0";
+  $("#p-ract").value=R.act||"marche";
+  $("#p-rkm").value=R.km||2;
+  $("#p-runtil").value=R.until||"";
+  $("#restcfg").style.display=R.on?"grid":"none";
   $("#p-h").value=S.h;$("#p-age").value=S.age;
   save();
 }
@@ -1519,8 +1582,8 @@ function tileVal(q){
   if(q.id==="kcal"){const c=cible(t);return[nb(eaten(t)),c?"/ "+nb(c)+" kcal":"kcal"]}
   if(q.id==="water")return[nb(d.water/1000,1),"/ "+nb(waterGoal()/1000,1)+" L"];
   if(q.id==="sleep")return[d.sleep!==null?nb(d.sleep,1):"—","/ "+nb(S.sleepGoal,1)+" h"];
-  if(q.id==="run"){const f=S.runs.filter(r=>r.date===t).reduce((a,r)=>a+r.d,0);
-    return[nb(f,1),"/ "+nb(q.n,1)+" km"]}
+  if(q.id==="run")return[nb(distDuJour(q.act||"course",t),1),
+    "/ "+nb(q.n,1)+" km "+(ACT[q.act||"course"]||"").toLowerCase()];
   if(q.id==="flex")return[nb((d.flexSec||0)/60,0),"/ "+q.n+" min"];
   if(q.id==="core")return[q.n+'<small> s</small>',"gainage"];
   if(q.id==="zone")return[q.n,"pénalité"];
@@ -1594,7 +1657,7 @@ function renderRun(){
     ?"Estimation Riegel sur ta meilleure sortie route."+(nTrail?" "+nTrail+" trail hors projection.":"")
     :"Enregistre une sortie route de 1,5 km ou plus.";
 
-  const TL={trail:"Trail",fractionne:"Fractionné",tempo:"Tempo",endurance:"Endurance"};
+  const TL={trail:"Trail",fractionne:"Fractionné",tempo:"Tempo",endurance:"Endurance",marche:"Marche",velo:"Vélo"};
   $("#runlist").innerHTML=S.runs.length?S.runs.slice().sort((a,b)=>a.date<b.date?1:-1).slice(0,14).map(r=>{
     const extra=[TL[r.type]||"Endurance"];
     if(r.ed)extra.push("bloc "+nb(r.ed,2)+" km à "+fmtTime(r.et/r.ed)+"/km");
@@ -1652,9 +1715,11 @@ function renderDay(){
     $("#k-cap").textContent=reste>=0?"KCAL RESTANTES":"KCAL DE TROP";
     $("#k-eaten").textContent=nb(e);
     $("#k-target").textContent=nb(c);
-    $("#k-pts").textContent=deficitXP(t);
+    $("#k-pts").textContent=restOn()?"—":deficitXP(t);
     const def=Math.round(m-e);
-    $("#dx-note").textContent=!d.food.length?"Aucun repas enregistré. Les 40 points de déficit sont en jeu."
+    $("#dx-note").textContent=restOn()
+      ?"Mode repos : les calories sont suivies, elles ne rapportent ni ne coûtent de points."
+      :!d.food.length?"Aucun repas enregistré. Les 40 points de déficit sont en jeu."
       :def<=0?"Tu es au-dessus de ta dépense. Aucun point aujourd'hui."
       :def<S.deficit*.6?"Déficit de "+nb(def)+" kcal, sous ta cible de "+S.deficit+"."
       :def<=S.deficit*1.1?"Déficit de "+nb(def)+" kcal : la zone qui rapporte le maximum."
@@ -2066,12 +2131,14 @@ function fromGPX(text,src){
    sur 5 km : le dénivelé rend l'allure incomparable à celle de la route. */
 function runType(s){
   s=norm(String(s||""));
+  if(/velo|bike|cycl|ride/.test(s))return"velo";
+  if(/marche|walk|rando/.test(s))return"marche";
   if(/trail|sentier|montagne|nature/.test(s))return"trail";
   if(/fract|interval|piste|vma/.test(s))return"fractionne";
   if(/tempo|seuil/.test(s))return"tempo";
   return"endurance";
 }
-const isRoad=r=>r.type!=="trail";
+const isRoad=r=>["trail","marche","velo"].indexOf(r.type)<0;
 
 /* Sur une séance structurée, seul le bloc d'effort sert à projeter le chrono :
    l'échauffement et la récupération se font en marche et écraseraient l'allure. */
@@ -2081,6 +2148,8 @@ const effort=r=>r.ed&&r.et?{d:r.ed,t:r.et}:{d:r.d,t:r.t};
    Une sortie à l'allure objectif vaut le plein tarif, plus lent rapporte moins,
    plus rapide rapporte davantage. Seul le bloc couru compte. */
 function runXP(r){
+  if(r.type==="marche")return Math.max(3,Math.round(r.d*4));
+  if(r.type==="velo")return Math.max(3,Math.round(r.d*2));
   const e=effort(r);
   const pace=e.t/e.d;
   const mult=clamp(S.goalPace/pace,0.55,1.9);
@@ -2089,6 +2158,7 @@ function runXP(r){
 }
 /* Gain de vitesse proportionnel à la qualité de l'allure. */
 function runVIT(r){
+  if(r.type==="marche"||r.type==="velo")return 0;
   const e=effort(r);
   const mult=clamp(S.goalPace/(e.t/e.d),0.4,2);
   return Math.round((mult*.22+(r.type==="fractionne"?.18:r.type==="tempo"?.1:0))*100)/100;
@@ -2496,8 +2566,8 @@ $("#questlist").addEventListener("click",e=>{
   if(q&&!q.done&&q.proof){
     const t=today();
     if(q.id==="run"){
-      const fait=S.runs.filter(r=>r.date===t).reduce((a,r)=>a+r.d,0);
-      toast("Quête verrouillée","Le Système exige la preuve : "+nb(fait,2)+" km sur "+nb(q.n,1)+
+      const fait=distDuJour(q.act||"course",t);
+      toast("Quête verrouillée",(ACT[q.act||"course"]||"Course")+" : "+nb(fait,2)+" km sur "+nb(q.n,1)+
         " enregistrés. Passe par l'onglet Course.","bad");
     }else{
       const fait=(D(t).flexSec||0)/60;
@@ -2681,6 +2751,9 @@ $("#b-clearprev").addEventListener("click",()=>{
 $("#b-import").addEventListener("click",doImport);
 
 /* --- paramètres --- */
+$("#p-rest").addEventListener("change",e=>{
+  $("#restcfg").style.display=e.target.value==="1"?"grid":"none";
+});
 $("#b-save").addEventListener("click",()=>{
   S.goalW=parseFloat($("#p-wt").value)||70;
   S.goalPace=parseInt($("#p-goalpace").value,10);
@@ -2688,6 +2761,22 @@ $("#b-save").addEventListener("click",()=>{
   S.sleepGoal=parseFloat($("#p-sleep").value)||7.5;
   S.severity=$("#p-sev").value;
   S.protPerKg=parseFloat($("#p-prot").value)||1.6;
+  const avant=restOn();
+  S.rest={on:$("#p-rest").value==="1",
+          act:$("#p-ract").value,
+          km:Math.max(.5,parseFloat($("#p-rkm").value)||2),
+          until:$("#p-runtil").value||null};
+  /* le changement de mode recalibre la quete du jour sans toucher aux validations */
+  if(restOn()!==avant){
+    const faites=S.quests.filter(q=>q.done).map(q=>q.id);
+    S.quests=genQuests();
+    S.quests.forEach(q=>{if(faites.indexOf(q.id)>=0)q.done=true});
+    if(S.pending&&S.pending.zone)S.quests.push(zoneQuest());
+    toast(restOn()?"Mode repos activé":"Mode repos levé",
+      restOn()?ACT[S.rest.act]+" "+nb(S.rest.km,1)+" km · plus de points de déficit, le suivi continue."
+              :"Les quêtes reprennent leur calibrage normal.",
+      restOn()?"gold":undefined);
+  }
   S.h=parseFloat($("#p-h").value)||S.h;
   S.age=parseInt($("#p-age").value,10)||S.age;
   toast("Paramètres mis à jour","Cibles recalculées.");
