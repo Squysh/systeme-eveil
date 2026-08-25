@@ -586,6 +586,7 @@ input.bad,select.bad{border-color:var(--danger)!important;box-shadow:0 0 10px rg
         <label class="field"><span>Dénivelé + m</span><input id="r-dp" type="number" inputmode="numeric" placeholder="facultatif"></label>
         <label class="field"><span>FC moyenne</span><input id="r-hr" type="number" inputmode="numeric" placeholder="facultatif"></label>
       </div>
+      <label class="field"><span>Calories de la montre</span><input id="r-kcal" type="number" inputmode="numeric" placeholder="facultatif — sinon estimées"></label>
       <button class="btn" id="b-run">Valider la course</button>
     </div>
 
@@ -850,7 +851,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 180";
+const BUILD="24/08 · 190";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -1729,6 +1730,7 @@ function renderRun(){
     if(r.ed)extra.push("bloc "+nb(r.ed,2)+" km à "+fmtTime(r.et/r.ed)+"/km");
     if(r.dp)extra.push("D+ "+nb(r.dp)+" m");
     if(r.hr)extra.push(r.hr+" bpm");
+    extra.push(nb(runBurn(r))+" kcal"+(r.kcal?"":" est."));
     return "<li><b>"+nb(r.d,2)+" km · "+fmtTime(r.t)+"</b><span>"+fmtTime(r.t/r.d)+"/km · "+
       extra.join(" · ")+" · "+fmtDate(r.date)+"</span></li>";
   }).join(""):'<li><b>Aucune course</b><span>—</span></li>';
@@ -2716,7 +2718,8 @@ $("#b-run").addEventListener("click",()=>{
   if(!d||d<=0||!t){toast("Course invalide","Indique une distance et un temps.","bad");return}
   const type=$("#r-type").value;
   const dp=parseInt($("#r-dp").value,10)||null,hr=parseInt($("#r-hr").value,10)||null;
-  const nr={date:today(),d:d,t:t,type:type,dp:dp,hr:hr};
+  const kc=parseInt($("#r-kcal").value,10)||null;
+  const nr={date:today(),d:d,t:t,type:type,dp:dp,hr:hr,kcal:kc};
   S.runs.push(nr);
   S.runs.sort((a,b)=>a.date<b.date?-1:1);
   const xp=runXP(nr);
@@ -2724,7 +2727,7 @@ $("#b-run").addEventListener("click",()=>{
   gainXP(xp,"Course enregistrée.");
   logIt("Course "+nb(d,2)+" km en "+fmtTime(t));
   toast("Course enregistrée",nb(d,2)+" km à "+fmtTime(t/d)+"/km · +"+xp+" XP");
-  $("#r-d").value=$("#r-m").value=$("#r-s").value=$("#r-dp").value=$("#r-hr").value="";
+  $("#r-d").value=$("#r-m").value=$("#r-s").value=$("#r-dp").value=$("#r-hr").value=$("#r-kcal").value="";
   autoQuests();checkAch();render();
 });
 $("#b-weigh").addEventListener("click",()=>{
