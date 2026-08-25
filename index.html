@@ -802,6 +802,8 @@ POIDS   | 2026-08-23 | 96.7 | mg=26.8 | mm=39.7 | visc=11 | tmb=2099
 SOMMEIL | 2026-08-23 | 7:25 | score=92 | profond=1:42 | rem=1:56 | fc=55 | vfc=85 | bb=74
 EAU     | 2026-08-23 | 2.0
 JEUNE   | 2026-08-23 | 20:30 | 08:15
+REPOS   | 2026-08-31 | marche | 2
+REGLAGE | sommeil=7 | proteines=1.4
 REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
         <p class="tiny" style="margin:8px 0 0">Une ligne par élément, « auj » pour aujourd'hui. Une course prend la distance et le temps totaux, puis le type (endurance, tempo, fractionné, trail) et des champs facultatifs : <b>dp</b> dénivelé positif, <b>fc</b> fréquence cardiaque moyenne, <b>cad</b> cadence, <b>kcal</b> calories de la montre, et <b>bloc</b> = distance/temps de la partie courue, hors échauffement et récupération. Le bloc seul sert à projeter le chrono sur 5 km ; le total sert au volume et aux calories. Un repas prend le nom, les kcal, puis en facultatif les grammes de <b>protéines</b> et de <b>lipides</b>. Les types <b>marche</b> et <b>vélo</b> sont acceptés comme une course.</p>
       </details>
@@ -844,7 +846,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 110";
+const BUILD="24/08 · 120";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -864,7 +866,7 @@ const nb=(n,d)=>(n===null||n===undefined||(typeof n==="number"&&isNaN(n)))
 
 /* ================= état ================= */
 const blank=()=>({
-  name:"Joueur",h:175,age:25,sex:"h",goalW:70,goalPace:300,fit:1,deficit:400,sleepGoal:7.5,
+  name:"Joueur",h:175,age:25,sex:"h",goalW:70,goalPace:300,fit:1,deficit:400,sleepGoal:7,
   lvl:1,xp:0,streak:0,best:0,
   stats:{FOR:10,END:10,SOU:10,VIT:10,DIS:10},
   day:null,quests:[],side:[],
@@ -1129,19 +1131,15 @@ function penaltyCost(n){
   return Math.round(Math.min(c.base*Math.pow(c.mult,i),250));
 }
 /* Manger au-dessus de sa dépense coûte des points dans les modes durs. */
-/* Tant que la journee est en deficit, rien n'est du : c'est le deficit qui
-   compte, pas la composition. Des que le deficit disparait, le depassement
-   coute des points, et une journee tres grasse en coute davantage. */
+/* Une seule regle : tant que la journee est en deficit, rien n'est du.
+   Des que tu manges plus que ta depense, le depassement coute des points. */
 function surplusCost(d){
   d=d||today();
   const c=sev();
   if(!c.surplus)return 0;
   const m=maintien(d),e=eaten(d);
   if(!m||!D(d).food.length||e<=m)return 0;
-  let cost=Math.min(60,Math.round((e-m)/c.surplus));
-  const pct=fatPct(d);
-  if(pct>.35)cost+=Math.min(40,Math.round((pct-.35)*200));
-  return cost;
+  return Math.min(60,Math.round((e-m)/c.surplus));
 }
 /* Retire des XP, et fait redescendre d'un niveau si le mode l'autorise. */
 function loseXP(n){
@@ -1274,6 +1272,15 @@ function unfinishQuest(id){
 
 /* Une mise à jour peut ajouter des champs aux quêtes ; celles déjà en cours
    les récupèrent sans perdre leur état de validation. */
+/* Regenere les quetes du jour en conservant ce qui est deja valide. */
+function recalibrerQuetes(){
+  const faites=S.quests.filter(q=>q.done).map(q=>q.id);
+  const zone=S.quests.find(q=>q.id==="zone");
+  S.quests=genQuests();
+  S.quests.forEach(q=>{if(faites.indexOf(q.id)>=0)q.done=true});
+  if(zone)S.quests.push(zone);
+  autoQuests();
+}
 function healQuests(){
   if(!S.quests||!S.quests.length)return;
   const fresh=genQuests().concat([zoneQuest()]);
@@ -1734,8 +1741,8 @@ function renderDay(){
       :def<S.deficit*.6?"Déficit de "+nb(def)+" kcal, sous ta cible de "+S.deficit+"."
       :def<=S.deficit*1.1?"Déficit de "+nb(def)+" kcal : la zone qui rapporte le maximum."
       :"Déficit de "+nb(def)+" kcal, au-delà de ta cible. Sous-manger coûte du muscle.";
-    if(surplusCost(t))$("#dx-note").textContent="Plus de déficit, et "+
-      Math.round(fatPct(t)*100)+" % des calories viennent du gras : −"+surplusCost(t)+" XP à minuit.";
+    if(surplusCost(t))$("#dx-note").textContent="Tu dépasses ta dépense de "+
+      nb(e-m)+" kcal : −"+surplusCost(t)+" XP à minuit.";
   }else{
     arc.setAttribute("stroke-dashoffset",LONG);
     $("#k-big").textContent="—";$("#k-cap").textContent="AUCUNE PESÉE";
@@ -2250,7 +2257,7 @@ function sleepExtras(fields){
    EAU      | 2026-08-23 | 2000
    REPAS    | 2026-08-23 | Midi | Poulet riz brocolis | 620 | 45
    La date accepte aussi « auj ». Une ligne non reconnue est ignorée. */
-const SYNCRE=/^\s*(course|poids|sommeil|eau|repas|jeune|jeûne)\s*\|/i;
+const SYNCRE=/^\s*(course|poids|sommeil|eau|repas|jeune|jeûne|repos|reglage|réglage)\s*\|/i;
 function isSync(text){return text.split(/\r?\n/).some(l=>SYNCRE.test(l))}
 function fromSync(text,src){
   const out=[];
@@ -2271,6 +2278,31 @@ function fromSync(text,src){
       const v=parseSleep(p[2]);
       if(v&&v>=2&&v<=16)out.push(Object.assign({k:"s",d:d,v:Math.round(v*100)/100,src:src},
         sleepExtras(p.slice(3))));
+    }else if(kind==="repos"){
+      /* REPOS | off   ou   REPOS | 2026-08-31 | marche | 2 */
+      if(/^(off|non|stop|fin)$/i.test(String(p[1]||"").trim())){
+        out.push({k:"rep",off:true,src:src});
+      }else{
+        const jour=/^auj/i.test(p[1]||"")?today():parseDay(p[1]);
+        const a=norm(String(p[2]||"marche")).trim();
+        const act=/velo|bike|cycl/.test(a)?"velo":/course|run/.test(a)?"course":"marche";
+        const km=Math.max(.5,parseFloat(String(p[3]||"2").replace(",","."))||2);
+        if(jour)out.push({k:"rep",off:false,until:jour,act:act,km:km,src:src});
+      }
+      return;
+    }else if(kind==="reglage"){
+      /* REGLAGE | sommeil=7 | proteines=1.4 | deficit=400 | severite=severe */
+      const o={};
+      p.slice(1).forEach(f=>{
+        const mm=String(f).match(/^([^=]{1,14})=(.+)$/); if(!mm)return;
+        const k2=norm(mm[1]).trim(),v=mm[2].trim();
+        if(/^sommeil/.test(k2))o.sleepGoal=parseFloat(v.replace(",","."));
+        else if(/^prot/.test(k2))o.protPerKg=parseFloat(v.replace(",","."));
+        else if(/^defic/.test(k2))o.deficit=parseInt(v,10);
+        else if(/^sever/.test(k2))o.severity=/impit/.test(norm(v))?"impitoyable":/norm/.test(norm(v))?"normal":"severe";
+      });
+      if(Object.keys(o).length)out.push({k:"cfg",cfg:o,src:src});
+      return;
     }else if(kind==="jeune"){
       const a=String(p[2]||"").trim(),b=String(p[3]||"").trim();
       if(/^\d{1,2}:\d{2}$/.test(a)&&/^\d{1,2}:\d{2}$/.test(b))
@@ -2318,6 +2350,7 @@ function isDup(it){
   if(it.k==="s"){const dd=S.days[it.d];return!!(dd&&dd.sleep!==null&&dd.sleep!==undefined)}
   if(it.k==="e"){const dd=S.days[it.d];return!!(dd&&dd.water===it.v)}
   if(it.k==="j"){const dd=S.days[it.d];return!!(dd&&dd.eatStart===it.start)}
+  if(it.k==="rep"||it.k==="cfg")return false;
   if(it.k==="m"){const dd=S.days[it.d];return!!(dd&&dd.food&&dd.food.some(f=>f.n===it.n&&f.k===it.v&&f.m===it.meal))}
   return false;
 }
@@ -2333,13 +2366,15 @@ function showPreview(items){
     $("#imp-note").textContent="Le Système n'a trouvé ni course, ni pesée, ni nuit dans ce contenu. Vérifie qu'il contient une date et une distance/durée.";
     return;
   }
-  const lbl={r:"Course",w:"Pesée",s:"Sommeil",e:"Eau",m:"Repas",j:"Jeûne"};
+  const lbl={r:"Course",w:"Pesée",s:"Sommeil",e:"Eau",m:"Repas",j:"Jeûne",rep:"Repos",cfg:"Réglage"};
   $("#prev").innerHTML=PENDING.map((it,i)=>{
     const dup=isDup(it);
     const txt=it.k==="r"?nb(it.dist,2)+" km en "+fmtTime(it.t)+" ("+fmtTime(it.t/it.dist)+"/km)"
       :it.k==="w"?nb(it.v,1)+" kg"
       :it.k==="e"?nb(it.v/1000,2)+" L"
       :it.k==="j"?it.end+" → "+it.start
+      :it.k==="rep"?(it.off?"levé":ACT[it.act]+" "+nb(it.km,1)+" km jusqu’au "+fmtDate(it.until))
+      :it.k==="cfg"?Object.keys(it.cfg).map(x=>x+" = "+it.cfg[x]).join(" · ")
       :it.k==="m"?it.n+" — "+nb(it.v)+" kcal"+(it.p?" · "+it.p+" g prot":"")+" ("+it.meal+")"
       :nb(it.v,2).replace(".",",")+" h";
     return '<li class="'+(dup?"dup":"")+'"><input type="checkbox" data-i="'+i+'"'+(dup?"":" checked")+'>'+
@@ -2351,7 +2386,7 @@ function showPreview(items){
 }
 function doImport(){
   const boxes=$$("#prev input[type=checkbox]");
-  let nr=0,nw=0,ns=0,ne=0,nm=0,nj=0;
+  let nr=0,nw=0,ns=0,ne=0,nm=0,nj=0,nc=0;
   boxes.forEach(b=>{
     if(!b.checked)return;
     const it=PENDING[+b.dataset.i];
@@ -2380,6 +2415,17 @@ function doImport(){
       ns++;
     }
     if(it.k==="e"){D(it.d).water=it.v;ne++}
+    if(it.k==="rep"){
+      const avant=restOn();
+      S.rest=it.off?{on:false,until:null,act:S.rest.act||"marche",km:S.rest.km||2}
+                   :{on:true,until:it.until,act:it.act,km:it.km};
+      if(restOn()!==avant)recalibrerQuetes();
+      nc++;
+    }
+    if(it.k==="cfg"){
+      Object.keys(it.cfg).forEach(k2=>{if(!isNaN(it.cfg[k2])||typeof it.cfg[k2]==="string")S[k2]=it.cfg[k2]});
+      recalibrerQuetes();nc++;
+    }
     if(it.k==="j"){
       D(prevDay(it.d)).eatEnd=it.end;D(it.d).eatStart=it.start;
       const h=fastHours(it.d);
@@ -2400,6 +2446,7 @@ function doImport(){
   if(ne)parts.push(ne+" relevé"+(ne>1?"s":"")+" d'eau");
   if(nm)parts.push(nm+" repas");
   if(nj)parts.push(nj+" jeûne"+(nj>1?"s":""));
+  if(nc)parts.push(nc+" réglage"+(nc>1?"s":""));
   if(!parts.length){toast("Rien à importer","Tout était déjà enregistré.","bad");return}
   logIt("Import : "+parts.join(", "));
   toast("Import terminé",parts.join(" · ")+" ajouté(s).","gold");
@@ -2783,10 +2830,7 @@ $("#b-save").addEventListener("click",()=>{
           until:$("#p-runtil").value||null};
   /* le changement de mode recalibre la quete du jour sans toucher aux validations */
   if(restOn()!==avant){
-    const faites=S.quests.filter(q=>q.done).map(q=>q.id);
-    S.quests=genQuests();
-    S.quests.forEach(q=>{if(faites.indexOf(q.id)>=0)q.done=true});
-    if(S.pending&&S.pending.zone)S.quests.push(zoneQuest());
+    recalibrerQuetes();
     toast(restOn()?"Mode repos activé":"Mode repos levé",
       restOn()?ACT[S.rest.act]+" "+nb(S.rest.km,1)+" km · plus de points de déficit, le suivi continue."
               :"Les quêtes reprennent leur calibrage normal.",
