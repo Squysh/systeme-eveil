@@ -850,7 +850,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 170";
+const BUILD="24/08 · 180";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -1237,15 +1237,21 @@ function rollDay(){
       setTimeout(()=>toast("Déficit validé","Journée du "+fmtDate(S.day)+" close. +"+dxp+" XP de déficit.","gold"),1100);
     }
     const missed=S.quests.filter(q=>!q.done).length;
+    const total=Math.max(1,S.quests.length);
     const skipped=dayDiff(S.day,t)-1;
     const sur=surplusCost(S.day);
     if(missed>0||skipped>0){
-      S.fails++;S.worstFails=Math.max(S.worstFails,S.fails);
-      const cost=penaltyCost(S.fails)+sur;
+      /* La sanction suit la part de quetes manquees : une sur huit ne vaut pas
+         huit sur huit. L'escalade ne se declenche qu'a partir d'un echec net. */
+      const part=skipped>0?1:missed/total;
+      const grave=skipped>0||part>=.5;
+      if(grave){S.fails++;S.worstFails=Math.max(S.worstFails,S.fails)}
+      const plein=penaltyCost(grave?S.fails:S.fails+1);
+      const cost=Math.max(5,Math.round(plein*part))+sur;
       const down=loseXP(cost);
       S.streak=0;bumpStat("DIS",-.4);
-      S.pending={missed:missed,skipped:skipped,cost:cost,surplus:sur,down:down,
-                 fails:S.fails,zone:sev().zone};
+      S.pending={missed:missed,total:total,skipped:skipped,cost:cost,surplus:sur,down:down,
+                 fails:S.fails,grave:grave,zone:sev().zone&&grave};
       logIt("Sanction : "+missed+" quête(s) manquée(s), −"+cost+" XP"+(down?", −"+down+" niveau":""));
     }else{
       S.fails=0;
@@ -1550,8 +1556,8 @@ function render(){
   const PR=$("#pen-rule");
   if(PR)PR.innerHTML="Mode <b style=\"color:var(--danger)\">"+
     ({normal:"normal",severe:"sévère",impitoyable:"impitoyable"}[S.severity])+
-    "</b> : une journée close sans terminer les quêtes coûte <b style=\"color:var(--danger)\">"+penaltyCost()+
-    " XP</b>, remet la série à zéro"+
+    "</b> : une journée incomplète coûte <b style=\"color:var(--danger)\">jusqu'à "+penaltyCost()+
+    " XP</b>, au prorata des quêtes manquées, et remet la série à zéro"+
     (sev().zone?", durcit les quêtes du lendemain et ajoute une zone de pénalité":"")+
     (sev().perteNiveau?". Si l'expérience tombe à zéro, tu perds un niveau.":".")+
     (sev().surplus?" Manger au-dessus de ta dépense coûte des points en plus.":"");
@@ -2583,11 +2589,13 @@ function showPenalty(){
   if(!p)return;
   const li=[];
   li.push(p.skipped>0?p.skipped+" journée(s) sautée(s) sans ouvrir le Système"
-                     :p.missed+" quête(s) laissée(s) inachevée(s)");
+                     :p.missed+" quête"+(p.missed>1?"s":"")+" sur "+(p.total||8)+" laissée"+
+                      (p.missed>1?"s":"")+" inachevée"+(p.missed>1?"s":""));
   li.push("−"+p.cost+" XP"+(p.surplus?" (dont "+p.surplus+" pour surplus calorique)":""));
   if(p.down)li.push("Rétrogradation : niveau "+S.lvl+", rang "+rankOf(S.lvl)[1]);
   li.push("Série remise à zéro");
-  li.push("Échecs consécutifs : "+p.fails+" · prochaine sanction "+penaltyCost()+" XP");
+  li.push(p.grave?"Échecs consécutifs : "+p.fails+" · prochaine sanction jusqu'à "+penaltyCost()+" XP"
+                 :"Échec partiel : le compteur d'échecs ne bouge pas");
   if(p.zone)li.push("Zone de pénalité ajoutée aux quêtes du jour");
   $("#pen-big").textContent=p.skipped>0?"Absence détectée":"Quête journalière échouée";
   $("#pen-txt").textContent=p.zone
