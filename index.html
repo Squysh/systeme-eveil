@@ -850,7 +850,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 150";
+const BUILD="24/08 · 170";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -877,7 +877,7 @@ const blank=()=>({
   weights:[],runs:[],flexTests:[],flexDone:0,
   days:{},customFoods:[],
   severity:"severe",fails:0,pending:null,worstFails:0,dayBonus:0,protPerKg:1.6,
-  rest:{on:false,until:null,act:"marche",km:2},
+  rest:{on:false,until:null,act:"marche",km:2},waterL:null,
   totals:{push:0,squat:0,core:0},
   log:[],ach:[],created:today()
 });
@@ -1051,9 +1051,22 @@ function proteins(d){return D(d).food.reduce((a,f)=>a+(f.p||0),0)}
 function fats(d){return D(d).food.reduce((a,f)=>a+(f.f||0),0)}
 /* Part des calories venant des lipides. Au-dela de 35 % la journee est grasse. */
 function fatPct(d){const e=eaten(d);return e?fats(d)*9/e:0}
+/* 35 ml par kilo de poids total surestime des qu'il y a de la masse grasse :
+   le tissu adipeux est bien moins hydrate que le muscle. On se base donc sur
+   la masse maigre quand elle est connue, et le supplement suit l'effort. */
 function waterGoal(){
-  const w=curW()||75;
-  return Math.round((w*35+(S.runs.some(r=>r.date===today())?600:0))/50)*50;
+  const w=curW()||75,t=today();
+  let base;
+  if(S.waterL)base=S.waterL*1000;
+  else{
+    const c=lastComp();
+    base=c&&c.fat?c.v*(1-c.fat/100)*35:Math.min(w,S.goalW*1.15)*30;
+  }
+  let bonus=0;
+  S.runs.filter(r=>r.date===t).forEach(r=>{
+    bonus+=(r.type==="marche"||r.type==="velo")?250:500;
+  });
+  return Math.round((base+Math.min(bonus,1000))/50)*50;
 }
 
 /* ---------- mode repos ----------
@@ -2317,6 +2330,7 @@ function fromSync(text,src){
           else if(/^defic/.test(k2))o.deficit=parseInt(v,10);
           else if(/^sever/.test(k2))o.severity=/impit/.test(norm(v))?"impitoyable":/norm/.test(norm(v))?"normal":"severe";
           else if(/^grace|^grâce|^pardon/.test(k2))o.grace=1;
+          else if(/^eau/.test(k2))o.waterL=parseFloat(v.replace(",","."))||null;
         });
         if(Object.keys(o).length)out.push({k:"cfg",cfg:o,src:src});
       }
