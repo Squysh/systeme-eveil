@@ -970,7 +970,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="27/08 · 337";
+const BUILD="27/08 · 338";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -1992,10 +1992,15 @@ function renderTrend(){
     tuile("Moyenne 30 nuits",m30===null?"—":nb(m30,2)+" <small>h</small>")+
     tuile("Dette 7 jours",nb(dette,1)+" <small>h</small>")+
     tuile("Nuits tenues",tenues+" <small>/ 7</small>");
+  /* La dette ne totalise que les nuits enregistrees : sans ce garde-fou, une
+     semaine presque vide passerait pour une semaine bien dormie. */
+  const nuits=J21.slice(-7).filter(j=>dodo(j)>0).length;
   $("#tr-snote").textContent=
     m7===null?"Les nuits arrivent seules depuis la montre."
+    :nuits<4?"Seulement "+nuits+" nuit"+(nuits>1?"s":"")+" sur sept enregistrée"+(nuits>1?"s":"")+
+      " : trop peu pour juger la semaine. Moyenne sur ce qui est connu, "+nb(m7,2)+" h."
     :dette<=2?"Sommeil tenu sur la semaine. C'est là que le corps encaisse la charge."
-    :"Dette de "+nb(dette,1)+" h sur sept nuits. Le manque de sommeil dégrade la récupération avant même la performance.";
+    :"Dette de "+nb(dette,1)+" h sur "+nuits+" nuits. Le manque de sommeil dégrade la récupération avant même la performance.";
 
   /* ---- activite ---- */
   const SEM=8,sems=[];
