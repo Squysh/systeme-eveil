@@ -38,9 +38,13 @@ if "health.connect" not in s:
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'""",
              s,count=1)
 # Health Connect exige un niveau d'API recent
-s=re.sub(r"minSdkVersion\s+\w+", "minSdkVersion 26", s)
+s=re.sub(r"minSdkVersion\s+[\w.]+", "minSdkVersion 26", s)
 io.open(p,"w",encoding="utf-8").write(s)
 print("dependances ajoutees")
+print("--- app/build.gradle ---")
+print("
+".join(s.split("
+")[:26]))
 PY
 
 echo "--- enregistrement du module ---"
