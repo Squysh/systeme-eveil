@@ -916,7 +916,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="25/08 · 300";
+const BUILD="25/08 · 301";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -1033,7 +1033,7 @@ function D(d){
 
 /* ================= niveaux ================= */
 const need=l=>80+(l-1)*45;
-const RANKS=[[70,"S","#DE8272"],[50,"A","#E0A94A"],[35,"B","#8FA6B8"],[20,"C","#E3CD8B"],[10,"D","#A9C98A"],[1,"E","#B8AE93"]];
+const RANKS=[[70,"S","#F0DEA8"],[50,"A","#DE8272"],[35,"B","#E0A94A"],[20,"C","#E3CD8B"],[10,"D","#A9C98A"],[1,"E","#B8AE93"]];
 const rankOf=l=>RANKS.find(r=>l>=r[0]);
 /* Avancement dans le rang : du niveau plancher au niveau du rang suivant. */
 function rankProgress(){
