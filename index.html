@@ -927,7 +927,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="27/08 · 320";
+const BUILD="27/08 · 330";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -1366,6 +1366,10 @@ function finishQuest(id,silent){
   }
   if(!silent)toast("Quête validée",q.t+" · +"+q.xp+" XP");
   if(S.quests.every(x=>x.done))completeAll();
+  if(it.k==="m"){
+    D(it.d).food.push({i:Date.now()+Math.random(),n:it.n,m:it.meal,q:0,k:it.v,p:it.p||0,c:0,f:it.f||0});
+    gainXP(3,"Repas importé.");
+  }
   return true;
 }
 /* Décocher une quête manuelle : rend les points, la statistique, le volume
@@ -1826,7 +1830,8 @@ function renderRun(){
     if(r.dp)extra.push("D+ "+nb(r.dp)+" m");
     if(r.hr)extra.push(r.hr+" bpm");
     extra.push(nb(runBurn(r))+" kcal"+(r.kcal?"":" est."));
-    return "<li><b>"+nb(r.d,2)+" km · "+fmtTime(r.t)+"</b><span>"+fmtTime(r.t/r.d)+"/km · "+
+    return '<li data-run="'+(r.date+"|"+r.d+"|"+r.t)+'"><b>'+nb(r.d,2)+" km · "+fmtTime(r.t)+
+      '<button class="del" aria-label="Supprimer">×</button></b><span>'+fmtTime(r.t/r.d)+"/km · "+
       extra.join(" · ")+" · "+fmtDate(r.date)+"</span></li>";
   }).join(""):'<li><b>Aucune course</b><span>—</span></li>';
 
@@ -2540,70 +2545,76 @@ function showPreview(items){
   $("#b-import").disabled=n===0;
   $("#imp-note").textContent=PENDING.length+" élément(s) détecté(s), "+n+" nouveau(x). Les doublons sont décochés.";
 }
+/* Applique un element importe. Partagee par l'import manuel et la
+   synchronisation automatique, pour qu'ils ne divergent jamais. */
+function appliquerImport(it){
+  if(!it||isDup(it))return false;
+    if(it.k==="r"){
+    const run={date:it.d,d:it.dist,t:it.t,type:it.type||"endurance",src:it.src,
+      dp:it.dp||null,hr:it.hr||null,cad:it.cad||null,kcal:it.kcal||null,
+      ed:it.ed||null,et:it.et||null};
+    S.runs.push(run);
+    nr++;bumpStat("END",it.dist*.1+(it.dp||0)*.002);bumpStat("VIT",runVIT(run));
+    gainXP(runXP(run),"Course importée.");
+  }
+  if(it.k==="w"){
+    const ex=S.weights.find(w=>w.d===it.d)||{d:it.d};
+    ex.v=it.v;ex.src=it.src;
+    ["fat","mus","visc","tmb"].forEach(k=>{if(it[k])ex[k]=it[k]});
+    if(S.weights.indexOf(ex)<0)S.weights.push(ex);
+    nw++;
+  }
+  if(it.k==="s"){
+    const dd=D(it.d);
+    dd.sleep=Math.round(it.v*100)/100;
+    const det={};
+    ["score","deep","light","rem","hr","hrv","bb","spo2"].forEach(k=>{if(it[k])det[k]=it[k]});
+    if(Object.keys(det).length)dd.sl=det;
+    ns++;
+  }
+  if(it.k==="e"){D(it.d).water=it.v;ne++}
+  if(it.k==="rep"){
+    S.rest=it.off?{on:false,until:null,act:S.rest.act||"marche",km:S.rest.km||2,charge:1}
+                 :{on:true,until:it.until,act:it.act,km:it.km,charge:it.charge||1};
+    /* la charge, la distance et l'activite changent les quetes du jour :
+       recalibrer sans attendre une bascule du mode */
+    recalibrerQuetes();
+    nc++;
+  }
+  if(it.k==="cfg"){
+    const c=it.cfg;
+    if(c.grace){
+      /* efface la sanction en cours : compteur d'echecs, fenetre et zone */
+      S.fails=0;S.pending=null;
+      S.quests=S.quests.filter(q=>q.id!=="zone");
+      logIt("Grâce accordée : sanction effacée");
+    }
+    /* correction manuelle des compteurs cumules */
+    [["tpush","push"],["tsquat","squat"],["tcore","core"]].forEach(([kc,kt])=>{
+      if(c[kc]!==undefined&&!isNaN(c[kc])){S.totals[kt]=Math.max(0,c[kc]);delete c[kc]}
+    });
+    Object.keys(c).forEach(k2=>{if(k2!=="grace")S[k2]=c[k2]});
+    recalibrerQuetes();nc++;
+  }
+  if(it.k==="j"){
+    D(prevDay(it.d)).eatEnd=it.end;D(it.d).eatStart=it.start;
+    const h=fastHours(it.d);
+    if(h!==null)gainXP(fastXP(h),"Jeûne importé.");
+    nj++;
+  }
+  return true;
+}
+
 function doImport(){
   const boxes=$$("#prev input[type=checkbox]");
   let nr=0,nw=0,ns=0,ne=0,nm=0,nj=0,nc=0;
   boxes.forEach(b=>{
     if(!b.checked)return;
     const it=PENDING[+b.dataset.i];
-    if(!it||isDup(it))return;
-    if(it.k==="r"){
-      const run={date:it.d,d:it.dist,t:it.t,type:it.type||"endurance",src:it.src,
-        dp:it.dp||null,hr:it.hr||null,cad:it.cad||null,kcal:it.kcal||null,
-        ed:it.ed||null,et:it.et||null};
-      S.runs.push(run);
-      nr++;bumpStat("END",it.dist*.1+(it.dp||0)*.002);bumpStat("VIT",runVIT(run));
-      gainXP(runXP(run),"Course importée.");
-    }
-    if(it.k==="w"){
-      const ex=S.weights.find(w=>w.d===it.d)||{d:it.d};
-      ex.v=it.v;ex.src=it.src;
-      ["fat","mus","visc","tmb"].forEach(k=>{if(it[k])ex[k]=it[k]});
-      if(S.weights.indexOf(ex)<0)S.weights.push(ex);
-      nw++;
-    }
-    if(it.k==="s"){
-      const dd=D(it.d);
-      dd.sleep=Math.round(it.v*100)/100;
-      const det={};
-      ["score","deep","light","rem","hr","hrv","bb","spo2"].forEach(k=>{if(it[k])det[k]=it[k]});
-      if(Object.keys(det).length)dd.sl=det;
-      ns++;
-    }
-    if(it.k==="e"){D(it.d).water=it.v;ne++}
-    if(it.k==="rep"){
-      S.rest=it.off?{on:false,until:null,act:S.rest.act||"marche",km:S.rest.km||2,charge:1}
-                   :{on:true,until:it.until,act:it.act,km:it.km,charge:it.charge||1};
-      /* la charge, la distance et l'activite changent les quetes du jour :
-         recalibrer sans attendre une bascule du mode */
-      recalibrerQuetes();
-      nc++;
-    }
-    if(it.k==="cfg"){
-      const c=it.cfg;
-      if(c.grace){
-        /* efface la sanction en cours : compteur d'echecs, fenetre et zone */
-        S.fails=0;S.pending=null;
-        S.quests=S.quests.filter(q=>q.id!=="zone");
-        logIt("Grâce accordée : sanction effacée");
-      }
-      /* correction manuelle des compteurs cumules */
-      [["tpush","push"],["tsquat","squat"],["tcore","core"]].forEach(([kc,kt])=>{
-        if(c[kc]!==undefined&&!isNaN(c[kc])){S.totals[kt]=Math.max(0,c[kc]);delete c[kc]}
-      });
-      Object.keys(c).forEach(k2=>{if(k2!=="grace")S[k2]=c[k2]});
-      recalibrerQuetes();nc++;
-    }
-    if(it.k==="j"){
-      D(prevDay(it.d)).eatEnd=it.end;D(it.d).eatStart=it.start;
-      const h=fastHours(it.d);
-      if(h!==null)gainXP(fastXP(h),"Jeûne importé.");
-      nj++;
-    }
-    if(it.k==="m"){
-      D(it.d).food.push({i:Date.now()+Math.random(),n:it.n,m:it.meal,q:0,k:it.v,p:it.p||0,c:0,f:it.f||0});
-      nm++;gainXP(3,"Repas importé.");
-    }
+    if(!appliquerImport(it))return;
+    if(it.k==="r")nr++; if(it.k==="w")nw++; if(it.k==="s")ns++;
+    if(it.k==="e")ne++; if(it.k==="rep"||it.k==="cfg")nc++;
+    if(it.k==="m")nm++; if(it.k==="j")nj++;
   });
   S.runs.sort((a,b)=>a.date<b.date?-1:1);
   S.weights.sort((a,b)=>a.d<b.d?-1:1);
@@ -2764,6 +2775,35 @@ function hcVersBloc(d){
     L.push(l);
   });
   return L.join(NL);
+}
+/* A l'ouverture : on lit, on importe ce qui est nouveau, on le dit.
+   Les doublons sont ecartes par le meme filtre que l'import manuel. */
+function hcAuto(){
+  const m=HC();if(!m)return;
+  m.status().then(st=>{
+    if(st.sdk!=="disponible"||!st.completes)return;
+    return m.lire({jours:90}).then(d=>{
+      if(!d.ok)return;
+      const bloc=hcVersBloc(d);
+      if(!bloc)return;
+      const items=fromSync(bloc,"Garmin").filter(it=>!isDup(it));
+      if(!items.length)return;
+      PENDING=items;
+      const av={r:S.runs.length,w:S.weights.length};
+      items.forEach((it,i)=>appliquerImport(it));
+      const nr=S.runs.length-av.r, nw=S.weights.length-av.w;
+      const parts=[];
+      if(nr)parts.push(nr+" activité"+(nr>1?"s":""));
+      if(nw)parts.push(nw+" pesée"+(nw>1?"s":""));
+      const ns=items.filter(it=>it.k==="s").length;
+      if(ns)parts.push(ns+" nuit"+(ns>1?"s":""));
+      PENDING=[];
+      if(!parts.length)return;
+      logIt("Garmin : "+parts.join(", "));
+      autoQuests();checkAch();render();
+      toast("Synchronisation Garmin",parts.join(" · ")+" récupérée(s) automatiquement.","gold");
+    });
+  }).catch(()=>{});
 }
 function hcLire(){
   const m=HC();if(!m)return;
@@ -3029,6 +3069,24 @@ $("#b-hc-perm").addEventListener("click",()=>{
   m.demander().then(()=>hcStatut()).catch(e=>{$("#hc-etat").textContent="Refusé : "+(e.message||e)});
 });
 $("#b-hc-lire").addEventListener("click",hcLire);
+/* Une activite importee doit pouvoir etre retiree : sans cela, une lecture
+   automatique erronee resterait definitive. */
+$("#runlist").addEventListener("click",e=>{
+  const b=e.target.closest(".del");if(!b)return;
+  const cle=b.closest("[data-run]").dataset.run;
+  const i=S.runs.findIndex(r=>(r.date+"|"+r.d+"|"+r.t)===cle);
+  if(i<0)return;
+  const r=S.runs[i];
+  if(!confirm("Supprimer "+nb(r.d,2)+" km du "+fmtDate(r.date)+" ?"+NL+NL+
+    "Le Système reprend "+runXP(r)+" XP."))return;
+  revokeXP(runXP(r));
+  bumpStat("END",-(r.d*.1+(r.dp||0)*.002));
+  bumpStat("VIT",-runVIT(r));
+  S.runs.splice(i,1);
+  logIt("Activité supprimée : "+nb(r.d,2)+" km du "+fmtDate(r.date));
+  toast("Activité supprimée",nb(r.d,2)+" km · le Système a repris ses points.","bad");
+  autoQuests();render();
+});
 $("#b-hc-diag").addEventListener("click",()=>{
   const m=HC(),z=$("#hc-diag");
   if(!m){z.hidden=false;z.textContent="Module natif absent : tu es sur le web ou sur iPhone.";return}
@@ -3122,7 +3180,7 @@ $("#nav").addEventListener("click",e=>{
 function boot(){
   $("#topbar").hidden=false;$("#nav").hidden=false;
   $("#s-init").classList.remove("on");
-  rollDay();healQuests();autoQuests();renderRoutine();render();hcPanneau();go("status");booted=true;
+  rollDay();healQuests();autoQuests();renderRoutine();render();hcPanneau();hcAuto();go("status");booted=true;
   if(S.pending)setTimeout(showPenalty,450);
 }
 const loaded=load();
