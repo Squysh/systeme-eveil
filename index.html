@@ -970,7 +970,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="27/08 · 338";
+const BUILD="27/08 · 339";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -2874,7 +2874,7 @@ function appliquerImport(it){
       dp:it.dp||null,hr:it.hr||null,cad:it.cad||null,kcal:it.kcal||null,
       ed:it.ed||null,et:it.et||null};
     S.runs.push(run);
-    nr++;bumpStat("END",it.dist*.1+(it.dp||0)*.002);bumpStat("VIT",runVIT(run));
+    bumpStat("END",it.dist*.1+(it.dp||0)*.002);bumpStat("VIT",runVIT(run));
     gainXP(runXP(run),"Course importée.");
   }
   if(it.k==="w"){
@@ -2882,7 +2882,6 @@ function appliquerImport(it){
     ex.v=it.v;ex.src=it.src;
     ["fat","mus","visc","tmb"].forEach(k=>{if(it[k])ex[k]=it[k]});
     if(S.weights.indexOf(ex)<0)S.weights.push(ex);
-    nw++;
   }
   if(it.k==="s"){
     const dd=D(it.d);
@@ -2890,9 +2889,8 @@ function appliquerImport(it){
     const det={};
     ["score","deep","light","rem","hr","hrv","bb","spo2"].forEach(k=>{if(it[k])det[k]=it[k]});
     if(Object.keys(det).length)dd.sl=det;
-    ns++;
   }
-  if(it.k==="e"){D(it.d).water=it.v;ne++}
+  if(it.k==="e")D(it.d).water=it.v;
   if(it.k==="sou")D(it.d).flexSec=Math.max(D(it.d).flexSec||0,it.v);
   if(it.k==="rf"){
     const dd=D(it.d),r=dd.rf||{push:0,squat:0,core:0};
@@ -2907,7 +2905,6 @@ function appliquerImport(it){
     /* la charge, la distance et l'activite changent les quetes du jour :
        recalibrer sans attendre une bascule du mode */
     recalibrerQuetes();
-    nc++;
   }
   if(it.k==="cfg"){
     const c=it.cfg;
@@ -2922,13 +2919,12 @@ function appliquerImport(it){
       if(c[kc]!==undefined&&!isNaN(c[kc])){S.totals[kt]=Math.max(0,c[kc]);delete c[kc]}
     });
     Object.keys(c).forEach(k2=>{if(k2!=="grace")S[k2]=c[k2]});
-    recalibrerQuetes();nc++;
+    recalibrerQuetes();
   }
   if(it.k==="j"){
     D(prevDay(it.d)).eatEnd=it.end;D(it.d).eatStart=it.start;
     const h=fastHours(it.d);
     if(h!==null)gainXP(fastXP(h),"Jeûne importé.");
-    nj++;
   }
   return true;
 }
