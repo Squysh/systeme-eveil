@@ -1,0 +1,130 @@
+name: APK Android
+
+# Emballe l'application web dans une coque native Capacitor et produit un APK
+# installable. La machine de Jordan n'a ni JDK ni SDK Android : tout se compile
+# ici, et le fichier est publie dans une Release telechargeable depuis sa tablette.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['README.md']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Lire le numero de version de l'application
+        id: v
+        run: |
+          BUILD=$(grep -o 'const BUILD="[^"]*"' index.html | head -1 | sed 's/.*="//;s/"//')
+          echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+          echo "tag=v$(date +%Y.%m.%d).${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "Version applicative : $BUILD"
+
+      - name: Preparer les sources web
+        run: |
+          mkdir -p www
+          cp -r index.html manifest.json sw.js fonts.css fonts icon-*.png www/
+          ls -la www
+
+      - name: Installer Capacitor
+        run: |
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund \
+            @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
+          cat > capacitor.config.json <<'JSON'
+          {
+            "appId": "io.github.squysh.systemeeveil",
+            "appName": "Systeme Eveil",
+            "webDir": "www",
+            "android": { "allowMixedContent": false },
+            "server": { "androidScheme": "https" },
+            "backgroundColor": "#0E0C08"
+          }
+          JSON
+
+      - name: Generer le projet Android
+        run: npx cap add android
+
+      - name: Cle de signature stable
+        # Une signature constante permet d'installer les mises a jour par-dessus
+        # l'existante, sans desinstaller ni perdre les donnees locales.
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KS" ]; then
+            echo "$KS" | base64 -d > android/app/eveil.keystore
+            echo "Cle fournie par le depot."
+          else
+            keytool -genkeypair -v -keystore android/app/eveil.keystore \
+              -alias eveil -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass systeme-eveil -keypass systeme-eveil \
+              -dname "CN=Systeme Eveil, O=Squysh, C=FR"
+            echo "::warning::Cle generee pour cette compilation. Ajoute le secret ANDROID_KEYSTORE_B64 pour garder la meme signature d'une version a l'autre."
+          fi
+          cat >> android/app/build.gradle <<'GRADLE'
+          android {
+              signingConfigs {
+                  eveil {
+                      storeFile file('eveil.keystore')
+                      storePassword 'systeme-eveil'
+                      keyAlias 'eveil'
+                      keyPassword 'systeme-eveil'
+                  }
+              }
+              buildTypes {
+                  release { signingConfig signingConfigs.eveil }
+              }
+          }
+          GRADLE
+
+      - name: Compiler l'APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Renommer le fichier
+        run: |
+          mkdir -p sortie
+          cp android/app/build/outputs/apk/release/app-release.apk \
+             "sortie/systeme-eveil-${{ steps.v.outputs.tag }}.apk"
+          ls -la sortie
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: sortie/*.apk
+
+      - name: Publier la Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.v.outputs.tag }}
+          name: Systeme Eveil ${{ steps.v.outputs.build }}
+          body: |
+            Application Android de Systeme Eveil, version ${{ steps.v.outputs.build }}.
+
+            **Installation sur la tablette :** telecharge le fichier `.apk` ci-dessous,
+            ouvre-le, et autorise l'installation depuis cette source si Android le demande.
+
+            Les donnees restent sur l'appareil. Pour transferer une progression
+            existante, utilise Parametres puis Copier la sauvegarde complete, et
+            colle-la dans Corps puis Importer.
+          files: sortie/*.apk
