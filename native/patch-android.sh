@@ -41,10 +41,6 @@ if "health.connect" not in s:
 s=re.sub(r"minSdkVersion\s+[\w.]+", "minSdkVersion 26", s)
 io.open(p,"w",encoding="utf-8").write(s)
 print("dependances ajoutees")
-print("--- app/build.gradle ---")
-print("
-".join(s.split("
-")[:26]))
 PY
 
 echo "--- enregistrement du module ---"
