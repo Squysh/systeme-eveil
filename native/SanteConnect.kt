@@ -51,6 +51,17 @@ class SanteConnect : Plugin() {
         androidx.health.connect.client.permission.HealthPermission.getReadPermission(BodyFatRecord::class)
     )
 
+    /** Traduit le type Health Connect vers le vocabulaire de l application. */
+    private fun typeLisible(t: Int): String = when (t) {
+        ExerciseSessionRecord.EXERCISE_TYPE_RUNNING,
+        ExerciseSessionRecord.EXERCISE_TYPE_RUNNING_TREADMILL -> "endurance"
+        ExerciseSessionRecord.EXERCISE_TYPE_HIKING -> "trail"
+        ExerciseSessionRecord.EXERCISE_TYPE_WALKING -> "marche"
+        ExerciseSessionRecord.EXERCISE_TYPE_BIKING,
+        ExerciseSessionRecord.EXERCISE_TYPE_BIKING_STATIONARY -> "velo"
+        else -> "autre"
+    }
+
     private fun client(): HealthConnectClient? = try {
         if (HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE)
             HealthConnectClient.getOrCreate(context) else null
@@ -142,26 +153,30 @@ class SanteConnect : Plugin() {
             try {
                 val filtre = TimeRangeFilter.between(debut, fin)
 
-                // Seances : distance, duree, calories, frequence cardiaque
+                // Chaque seance porte sa propre distance, sa depense et sa FC :
+                // un agregat par journee ne permettrait pas de les rattacher.
                 val seances = JSArray()
                 c.readRecords(ReadRecordsRequest(ExerciseSessionRecord::class, filtre)).records.forEach { s ->
+                    val plage = TimeRangeFilter.between(s.startTime, s.endTime)
+                    val metres = c.readRecords(ReadRecordsRequest(
+                        androidx.health.connect.client.records.DistanceRecord::class, plage))
+                        .records.sumOf { it.distance.inMeters }
+                    val cal = c.readRecords(ReadRecordsRequest(
+                        TotalCaloriesBurnedRecord::class, plage))
+                        .records.sumOf { it.energy.inKilocalories }
+                    val bpm = c.readRecords(ReadRecordsRequest(HeartRateRecord::class, plage))
+                        .records.flatMap { it.samples }.map { it.beatsPerMinute }
                     val o = JSObject()
                     o.put("date", jour(s.startTime))
                     o.put("titre", s.title ?: "")
-                    o.put("type", s.exerciseType)
+                    o.put("type", typeLisible(s.exerciseType))
                     o.put("secondes", java.time.Duration.between(s.startTime, s.endTime).seconds)
+                    o.put("metres", metres)
+                    o.put("kcal", cal)
+                    if (bpm.isNotEmpty()) o.put("fc", bpm.average())
                     seances.put(o)
                 }
                 res.put("seances", seances)
-
-                // Distance parcourue, agregee par journee
-                val dist = JSObject()
-                c.readRecords(ReadRecordsRequest(
-                    androidx.health.connect.client.records.DistanceRecord::class, filtre)).records.forEach { d ->
-                    val k = jour(d.startTime)
-                    dist.put(k, (dist.optDouble(k, 0.0)) + d.distance.inMeters)
-                }
-                res.put("distance", dist)
 
                 // Sommeil, en heures par journee de reveil
                 val sommeil = JSObject()
