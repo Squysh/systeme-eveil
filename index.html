@@ -970,7 +970,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="27/08 · 336";
+const BUILD="27/08 · 337";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -3087,14 +3087,6 @@ function hcVersBloc(d){
     /* Une seance d'etirement se compte en minutes tenues, pas en kilometres. */
     if(x.type==="souplesse"&&x.secondes){
       L.push("SOUPLESSE | "+x.date+" | "+Math.round(x.secondes/60));return;
-    }
-    /* Repetitions relevees par la montre, quand elle les decoupe. */
-    if(x.pompes||x.squats||x.gainage){
-      const f=[];
-      if(x.pompes)f.push("pompes="+x.pompes);
-      if(x.squats)f.push("squats="+x.squats);
-      if(x.gainage)f.push("gainage="+Math.round(x.gainage));
-      L.push("RENFORT | "+x.date+" | "+f.join(" | "));
     }
     if(x.type==="renfort")return;
     const km=(x.metres||0)/1000;

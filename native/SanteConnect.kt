@@ -7,7 +7,6 @@ import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.records.BodyFatRecord
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
-import androidx.health.connect.client.records.ExerciseSegment
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.HeartRateVariabilityRmssdRecord
 import androidx.health.connect.client.records.RestingHeartRateRecord
@@ -191,21 +190,13 @@ class SanteConnect : Plugin() {
                         o.put("kcal", c.readRecords(ReadRecordsRequest(TotalCaloriesBurnedRecord::class, plage))
                             .records.sumOf { it.energy.inKilocalories })
                     } catch (e: Throwable) { noter("depense", e) }
-                    // Une seance de force decoupee par la montre porte ses repetitions
-                    // dans ses segments. Toutes les montres ne les remplissent pas.
-                    var pompes = 0; var squats = 0; var planche = 0L
-                    s.segments.forEach { g: ExerciseSegment ->
-                        val r = g.repetitions
-                        when (g.segmentType) {
-                            ExerciseSegment.EXERCISE_SEGMENT_TYPE_PUSH_UP -> pompes += r
-                            ExerciseSegment.EXERCISE_SEGMENT_TYPE_SQUAT -> squats += r
-                            ExerciseSegment.EXERCISE_SEGMENT_TYPE_PLANK ->
-                                planche += java.time.Duration.between(g.startTime, g.endTime).seconds
-                        }
-                    }
-                    if (pompes > 0) o.put("pompes", pompes)
-                    if (squats > 0) o.put("squats", squats)
-                    if (planche > 0) o.put("gainage", planche)
+                    // Les repetitions d'une seance de force vivent dans ses segments,
+                    // mais cette version de la bibliotheque n'expose pas les constantes
+                    // qui distinguent une pompe d'un squat. On releve le total, faute
+                    // de pouvoir le repartir : deviner les identifiants numeriques
+                    // ferait entrer des valeurs fausses dans le suivi.
+                    val reps = s.segments.sumOf { it.repetitions }
+                    if (reps > 0) o.put("repetitions", reps)
                     try {
                         val bpm = c.readRecords(ReadRecordsRequest(HeartRateRecord::class, plage))
                             .records.flatMap { it.samples }.map { it.beatsPerMinute }
