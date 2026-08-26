@@ -857,7 +857,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 201";
+const BUILD="24/08 · 210";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -2484,10 +2484,11 @@ function doImport(){
     }
     if(it.k==="e"){D(it.d).water=it.v;ne++}
     if(it.k==="rep"){
-      const avant=restOn();
       S.rest=it.off?{on:false,until:null,act:S.rest.act||"marche",km:S.rest.km||2,charge:1}
                    :{on:true,until:it.until,act:it.act,km:it.km,charge:it.charge||1};
-      if(restOn()!==avant)recalibrerQuetes();
+      /* la charge, la distance et l'activite changent les quetes du jour :
+         recalibrer sans attendre une bascule du mode */
+      recalibrerQuetes();
       nc++;
     }
     if(it.k==="cfg"){
@@ -2906,16 +2907,16 @@ $("#b-save").addEventListener("click",()=>{
   S.sleepGoal=parseFloat($("#p-sleep").value)||7.5;
   S.severity=$("#p-sev").value;
   S.protPerKg=parseFloat($("#p-prot").value)||1.6;
-  const avant=restOn();
+  const avant=restOn(),avantCh=(S.rest||{}).charge,avantKm=(S.rest||{}).km,avantAct=(S.rest||{}).act;
   S.rest={on:$("#p-rest").value==="1",
           act:$("#p-ract").value,
           km:Math.max(.5,parseFloat($("#p-rkm").value)||2),
           charge:parseFloat($("#p-rch").value)||1,
           until:$("#p-runtil").value||null};
-  /* le changement de mode recalibre la quete du jour sans toucher aux validations */
-  if(restOn()!==avant){
+  /* toute modification du repos change les quetes du jour, pas seulement la bascule */
+  if(restOn()!==avant||S.rest.charge!==avantCh||S.rest.km!==avantKm||S.rest.act!==avantAct){
     recalibrerQuetes();
-    toast(restOn()?"Mode repos activé":"Mode repos levé",
+    if(restOn()!==avant)toast(restOn()?"Mode repos activé":"Mode repos levé",
       restOn()?ACT[S.rest.act]+" "+nb(S.rest.km,1)+" km · plus de points de déficit, le suivi continue."
               :"Les quêtes reprennent leur calibrage normal.",
       restOn()?"gold":undefined);
