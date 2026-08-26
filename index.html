@@ -927,7 +927,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="27/08 · 330";
+const BUILD="27/08 · 331";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -2814,7 +2814,8 @@ function hcLire(){
     if(!bloc){$("#hc-etat").textContent="Health Connect n'a rien à donner sur 90 jours. Vérifie que Garmin Connect y écrit bien.";return}
     $("#paste").value=bloc;
     showPreview(fromSync(bloc,"Garmin"));
-    $("#hc-etat").textContent="Données récupérées. Vérifie l'aperçu ci-dessous puis valide l'import.";
+    $("#hc-etat").textContent="Données récupérées. Vérifie l'aperçu ci-dessous puis valide l'import."
+      +((d.soucis&&d.soucis.length)?" Lecture partielle : "+d.soucis.join(" · ")+".":"");
     $("#paste").scrollIntoView({behavior:"smooth",block:"center"});
   }).catch(e=>{$("#hc-etat").textContent="Erreur : "+(e.message||e)});
 }
@@ -3098,7 +3099,8 @@ $("#b-hc-diag").addEventListener("click",()=>{
         joursSommeil:Object.keys(d.sommeil||{}).length,
         joursPas:Object.keys(d.pas||{}).length,
         pesees:Object.keys(d.poids||{}).length,
-        erreur:d.erreur||d.erreurLecture||null};
+        erreur:d.erreur||d.erreurLecture||null,
+        soucis:d.soucis||null};
       z.textContent=JSON.stringify(r,null,1);
     }).catch(e=>{z.textContent="Erreur : "+(e.message||e)});
 });

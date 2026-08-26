@@ -5,6 +5,7 @@ import androidx.activity.result.ActivityResult
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.records.BodyFatRecord
+import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.SleepSessionRecord
@@ -46,6 +47,7 @@ class SanteConnect : Plugin() {
         androidx.health.connect.client.permission.HealthPermission.getReadPermission(SleepSessionRecord::class),
         androidx.health.connect.client.permission.HealthPermission.getReadPermission(HeartRateRecord::class),
         androidx.health.connect.client.permission.HealthPermission.getReadPermission(ExerciseSessionRecord::class),
+        androidx.health.connect.client.permission.HealthPermission.getReadPermission(DistanceRecord::class),
         androidx.health.connect.client.permission.HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
         androidx.health.connect.client.permission.HealthPermission.getReadPermission(WeightRecord::class),
         androidx.health.connect.client.permission.HealthPermission.getReadPermission(BodyFatRecord::class)
@@ -150,76 +152,96 @@ class SanteConnect : Plugin() {
 
         CoroutineScope(Dispatchers.IO).launch {
             val res = JSObject()
-            try {
-                val filtre = TimeRangeFilter.between(debut, fin)
+            // Chaque famille de donnees est lue isolement : une autorisation
+            // manquante ou un enregistrement illisible ne doit pas emporter
+            // tout le reste de la releve avec lui.
+            val soucis = JSArray()
+            fun noter(quoi: String, e: Throwable) {
+                soucis.put(quoi + " : " + (e.message ?: e.toString()))
+            }
+            val filtre = TimeRangeFilter.between(debut, fin)
 
-                // Chaque seance porte sa propre distance, sa depense et sa FC :
-                // un agregat par journee ne permettrait pas de les rattacher.
-                val seances = JSArray()
+            // Chaque seance porte sa propre distance, sa depense et sa FC :
+            // un agregat par journee ne permettrait pas de les rattacher.
+            val seances = JSArray()
+            try {
                 c.readRecords(ReadRecordsRequest(ExerciseSessionRecord::class, filtre)).records.forEach { s ->
                     val plage = TimeRangeFilter.between(s.startTime, s.endTime)
-                    val metres = c.readRecords(ReadRecordsRequest(
-                        androidx.health.connect.client.records.DistanceRecord::class, plage))
-                        .records.sumOf { it.distance.inMeters }
-                    val cal = c.readRecords(ReadRecordsRequest(
-                        TotalCaloriesBurnedRecord::class, plage))
-                        .records.sumOf { it.energy.inKilocalories }
-                    val bpm = c.readRecords(ReadRecordsRequest(HeartRateRecord::class, plage))
-                        .records.flatMap { it.samples }.map { it.beatsPerMinute }
                     val o = JSObject()
                     o.put("date", jour(s.startTime))
                     o.put("titre", s.title ?: "")
                     o.put("type", typeLisible(s.exerciseType))
                     o.put("secondes", java.time.Duration.between(s.startTime, s.endTime).seconds)
-                    o.put("metres", metres)
-                    o.put("kcal", cal)
-                    if (bpm.isNotEmpty()) o.put("fc", bpm.average())
+                    try {
+                        o.put("metres", c.readRecords(ReadRecordsRequest(DistanceRecord::class, plage))
+                            .records.sumOf { it.distance.inMeters })
+                    } catch (e: Throwable) { noter("distance", e) }
+                    try {
+                        o.put("kcal", c.readRecords(ReadRecordsRequest(TotalCaloriesBurnedRecord::class, plage))
+                            .records.sumOf { it.energy.inKilocalories })
+                    } catch (e: Throwable) { noter("depense", e) }
+                    try {
+                        val bpm = c.readRecords(ReadRecordsRequest(HeartRateRecord::class, plage))
+                            .records.flatMap { it.samples }.map { it.beatsPerMinute }
+                        if (bpm.isNotEmpty()) o.put("fc", bpm.average())
+                    } catch (e: Throwable) { noter("frequence cardiaque", e) }
                     seances.put(o)
                 }
-                res.put("seances", seances)
+            } catch (e: Throwable) { noter("seances", e) }
+            res.put("seances", seances)
 
-                // Sommeil, en heures par journee de reveil
-                val sommeil = JSObject()
+            // Sommeil, en heures par journee de reveil
+            val sommeil = JSObject()
+            try {
                 c.readRecords(ReadRecordsRequest(SleepSessionRecord::class, filtre)).records.forEach { s ->
                     val k = jour(s.endTime)
                     val h = java.time.Duration.between(s.startTime, s.endTime).seconds / 3600.0
                     sommeil.put(k, (sommeil.optDouble(k, 0.0)) + h)
                 }
-                res.put("sommeil", sommeil)
+            } catch (e: Throwable) { noter("sommeil", e) }
+            res.put("sommeil", sommeil)
 
-                // Pas
-                val pas = JSObject()
+            // Pas
+            val pas = JSObject()
+            try {
                 c.readRecords(ReadRecordsRequest(StepsRecord::class, filtre)).records.forEach { p ->
                     val k = jour(p.startTime)
                     pas.put(k, (pas.optDouble(k, 0.0)) + p.count)
                 }
-                res.put("pas", pas)
+            } catch (e: Throwable) { noter("pas", e) }
+            res.put("pas", pas)
 
-                // Depense energetique
-                val kcal = JSObject()
+            // Depense energetique
+            val kcal = JSObject()
+            try {
                 c.readRecords(ReadRecordsRequest(TotalCaloriesBurnedRecord::class, filtre)).records.forEach { e ->
                     val k = jour(e.startTime)
                     kcal.put(k, (kcal.optDouble(k, 0.0)) + e.energy.inKilocalories)
                 }
-                res.put("kcal", kcal)
+            } catch (e: Throwable) { noter("depense journaliere", e) }
+            res.put("kcal", kcal)
 
-                // Poids et masse grasse
-                val poids = JSObject()
+            // Poids et masse grasse
+            val poids = JSObject()
+            try {
                 c.readRecords(ReadRecordsRequest(WeightRecord::class, filtre)).records.forEach { w ->
                     poids.put(jour(w.time), w.weight.inKilograms)
                 }
-                res.put("poids", poids)
-                val mg = JSObject()
+            } catch (e: Throwable) { noter("poids", e) }
+            res.put("poids", poids)
+
+            val mg = JSObject()
+            try {
                 c.readRecords(ReadRecordsRequest(BodyFatRecord::class, filtre)).records.forEach { b ->
                     mg.put(jour(b.time), b.percentage.value)
                 }
-                res.put("masseGrasse", mg)
+            } catch (e: Throwable) { noter("masse grasse", e) }
+            res.put("masseGrasse", mg)
 
-                res.put("ok", true)
-            } catch (e: Throwable) {
-                res.put("ok", false)
-                res.put("erreur", e.message ?: e.toString())
-            }
+            // Une releve partielle reste exploitable : on la rend, en disant
+            // ce qui a manque plutot que de tout refuser.
+            res.put("ok", true)
+            if (soucis.length() > 0) res.put("soucis", soucis)
             withContext(Dispatchers.Main) { call.resolve(res) }
         }
     }
