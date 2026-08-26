@@ -882,11 +882,13 @@ COURSE  | 2026-08-23 | 6.21 | 55:56 | trail | dp=320 | fc=165 | kcal=640
 POIDS   | 2026-08-23 | 96.7 | mg=26.8 | mm=39.7 | visc=11 | tmb=2099
 SOMMEIL | 2026-08-23 | 7:25 | score=92 | profond=1:42 | rem=1:56 | fc=55 | vfc=85 | bb=74
 EAU     | 2026-08-23 | 2.0
+PAS     | 2026-08-23 | 9420
+DEPENSE | 2026-08-23 | 2960
 JEUNE   | 2026-08-23 | 20:30 | 08:15
 REPOS   | 2026-08-31 | marche | 2
 REGLAGE | sommeil=7 | proteines=1.4
 REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
-        <p class="tiny" style="margin:8px 0 0">Une ligne par élément, « auj » pour aujourd'hui. Une course prend la distance et le temps totaux, puis le type (endurance, tempo, fractionné, trail) et des champs facultatifs : <b>dp</b> dénivelé positif, <b>fc</b> fréquence cardiaque moyenne, <b>cad</b> cadence, <b>kcal</b> calories de la montre, et <b>bloc</b> = distance/temps de la partie courue, hors échauffement et récupération. Le bloc seul sert à projeter le chrono sur 5 km ; le total sert au volume et aux calories. Un repas prend le nom, les kcal, puis en facultatif les grammes de <b>protéines</b> et de <b>lipides</b>. Les types <b>marche</b> et <b>vélo</b> sont acceptés comme une course.</p>
+        <p class="tiny" style="margin:8px 0 0">Une ligne par élément, « auj » pour aujourd'hui. Une course prend la distance et le temps totaux, puis le type (endurance, tempo, fractionné, trail) et des champs facultatifs : <b>dp</b> dénivelé positif, <b>fc</b> fréquence cardiaque moyenne, <b>cad</b> cadence, <b>kcal</b> calories de la montre, et <b>bloc</b> = distance/temps de la partie courue, hors échauffement et récupération. Le bloc seul sert à projeter le chrono sur 5 km ; le total sert au volume et aux calories. Un repas prend le nom, les kcal, puis en facultatif les grammes de <b>protéines</b> et de <b>lipides</b>. Les types <b>marche</b> et <b>vélo</b> sont acceptés comme une course. <b>PAS</b> et <b>DEPENSE</b> viennent de la montre : les pas valident seuls la quête annexe, et la dépense mesurée remplace l'estimation quand elle est plus haute — jamais plus basse, une journée en cours n'étant comptée qu'à moitié.</p>
       </details>
       <div class="drop" id="drop">
         <b>Déposer un fichier</b>
@@ -927,7 +929,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="27/08 · 331";
+const BUILD="27/08 · 332";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -947,7 +949,7 @@ const nb=(n,d)=>(n===null||n===undefined||(typeof n==="number"&&isNaN(n)))
 
 /* ================= état ================= */
 const blank=()=>({
-  name:"Joueur",h:175,age:25,sex:"h",goalW:70,goalPace:300,fit:1,deficit:400,sleepGoal:7,
+  name:"Joueur",h:175,age:25,sex:"h",goalW:70,goalPace:300,fit:1,deficit:400,sleepGoal:7,stepGoal:8000,
   lvl:1,xp:0,streak:0,best:0,
   stats:{FOR:10,END:10,SOU:10,VIT:10,DIS:10},
   day:null,quests:[],side:[],
@@ -1036,6 +1038,7 @@ function D(d){
   if(!S.days[d])S.days[d]={food:[],water:0,sleep:null};
   const o=S.days[d];
   o.food=o.food||[];o.water=o.water||0;o.flexSec=o.flexSec||0;
+  o.steps=o.steps||0;o.burn=o.burn||0;
   if(o.sleep===undefined)o.sleep=null;
   if(o.eatEnd===undefined)o.eatEnd=null;
   if(o.eatStart===undefined)o.eatStart=null;
@@ -1121,8 +1124,23 @@ function sportBurn(d){
   if(q&&q.filter(x=>x.done&&x.grp==="phys").length>=3)k+=w*1.1;
   return Math.round(k);
 }
-function maintien(d){const b=baseBurn();return b?b+sportBurn(d):null}
+/* La montre mesure la depense reelle de la journee, marche et agitation
+   comprises ; l'estimation ne voit que les seances enregistrees. On prend donc
+   la plus haute des deux. Jamais la mesure seule : en cours de journee elle
+   n'est que partielle, et s'y fier ferait fondre le budget a tort. */
+function maintien(d){
+  const b=baseBurn();if(!b)return null;
+  const est=b+sportBurn(d);
+  const mes=(S.days[d||today()]||{}).burn||0;
+  return Math.max(est,mes>b?mes:0);
+}
 function cible(d){const m=maintien(d);return m?m-S.deficit:null}
+/* Vrai quand c'est la montre, et non l'estimation, qui fixe la depense. */
+function depenseMesuree(d){
+  const b=baseBurn();if(!b)return 0;
+  const mes=(S.days[d||today()]||{}).burn||0;
+  return mes>b+sportBurn(d)?mes:0;
+}
 function eaten(d){return D(d).food.reduce((a,f)=>a+f.k,0)}
 function proteins(d){return D(d).food.reduce((a,f)=>a+(f.p||0),0)}
 function fats(d){return D(d).food.reduce((a,f)=>a+(f.f||0),0)}
@@ -1300,7 +1318,7 @@ function genQuests(){
 }
 const SIDE=[
   {id:"prot",t:"Atteindre la cible protéines",s:"Réglable dans les paramètres",xp:12,st:["FOR",.2]},
-  {id:"steps",t:"8 000 pas hors séance",s:"La dépense la moins coûteuse",xp:8,st:["END",.15]},
+  {id:"steps",auto:1,t:"Pas de la journée",s:"Verrouillée : se valide seule sur la mesure de la montre",xp:8,st:["END",.15]},
   {id:"nosugar",t:"Zéro sucre ajouté",s:"Sodas, biscuits, sauces sucrées",xp:12,st:["DIS",.3]},
   {id:"nolate",t:"Rien après 21 h",s:"Coupe le grignotage du soir",xp:10,st:["DIS",.25]}
 ];
@@ -1423,6 +1441,13 @@ function healQuests(){
 /* Les quetes suivies collent a la donnee dans les deux sens : elles se
    valident quand la cible est atteinte, et se decochent si on repasse
    dessous — un repas supprime, un compteur d'eau remis a zero. */
+/* En repos on ne demande pas le meme volume de marche : la charge s'y applique
+   comme au renforcement. */
+function stepGoal(){
+  const g=Math.max(1000,+S.stepGoal||8000);
+  const ch=restOn()?clamp(+S.rest.charge||1,.2,1):1;
+  return Math.round(g*ch/500)*500;
+}
 function autoQuests(){
   const t=today(),d=D(t),c=cible(t),e=eaten(t);
   const qr=S.quests.find(q=>q.id==="run"),qf=S.quests.find(q=>q.id==="flex");
@@ -1439,6 +1464,17 @@ function autoQuests(){
     if(etat[id]&&!q.done)finishQuest(id,true);
     else if(!etat[id]&&q.done)revertQuest(q);
   });
+  /* Les pas viennent de la montre : personne n'a a cocher cette case, et une
+     correction a la baisse doit pouvoir reprendre les points accordes. */
+  const qp=S.side.find(x=>x.id==="steps");
+  if(qp){
+    const atteint=d.steps>=stepGoal();
+    if(atteint&&!qp.done){
+      qp.done=true;bumpStat(qp.st[0],qp.st[1]);gainXP(qp.xp,"Pas du jour atteints.");
+    }else if(!atteint&&qp.done&&qp.auto){
+      qp.done=false;bumpStat(qp.st[0],-qp.st[1]);revokeXP(qp.xp);
+    }
+  }
 }
 
 /* ================= titres ================= */
@@ -1758,8 +1794,10 @@ function renderQuests(){
       '<svg class="ico" viewBox="0 0 24 24">'+(ICO[q.id]||ICO.push)+'</svg>'+
       '<div class="n">'+v[0]+'</div><div class="lb">'+v[1]+'</div></div>';
   }).join("");
-  $("#sidelist").innerHTML=S.side.map((q,i)=>
-    '<div class="quest'+(q.done?" done":"")+'" data-side="'+i+'"><div class="tick">✓</div><div class="txt"><b>'+q.t+"</b></div><div class=\"xp\">+"+q.xp+"</div></div>").join("");
+  $("#sidelist").innerHTML=S.side.map((q,i)=>{
+    const t=q.id==="steps"?nb(D().steps)+" / "+nb(stepGoal())+" pas":q.t;
+    return '<div class="quest'+(q.done?" done":"")+'" data-side="'+i+'"><div class="tick">✓</div><div class="txt"><b>'+t+"</b></div><div class=\"xp\">+"+q.xp+"</div></div>";
+  }).join("");
   const dn=S.quests.filter(q=>q.done).length;
   $("#q-count").textContent=dn+" / "+S.quests.length;
   $("#q-bar").style.width=(dn/S.quests.length*100)+"%";
@@ -1894,6 +1932,8 @@ function renderDay(){
       :"Déficit de "+nb(def)+" kcal, au-delà de ta cible. Sous-manger coûte du muscle.";
     if(surplusCost(t))$("#dx-note").textContent="Tu dépasses ta dépense de "+
       nb(e-m)+" kcal : −"+surplusCost(t)+" XP à minuit.";
+    if(depenseMesuree(t))$("#dx-note").textContent+=
+      " Dépense mesurée par la montre : "+nb(m)+" kcal.";
   }else{
     arc.setAttribute("stroke-dashoffset",LONG);
     $("#k-big").textContent="—";$("#k-cap").textContent="AUCUNE PESÉE";
@@ -2409,9 +2449,11 @@ function sleepExtras(fields){
    POIDS    | 2026-08-23 | 81.4
    SOMMEIL  | 2026-08-23 | 7:12
    EAU      | 2026-08-23 | 2000
+   PAS      | 2026-08-23 | 9420
+   DEPENSE  | 2026-08-23 | 2960
    REPAS    | 2026-08-23 | Midi | Poulet riz brocolis | 620 | 45
    La date accepte aussi « auj ». Une ligne non reconnue est ignorée. */
-const SYNCRE=/^\s*(course|poids|sommeil|eau|repas|jeune|jeûne|repos|reglage|réglage)\s*\|/i;
+const SYNCRE=/^\s*(course|poids|sommeil|eau|repas|jeune|jeûne|repos|reglage|réglage|pas|depense|dépense)\s*\|/i;
 function isSync(text){return text.split(/\r?\n/).some(l=>SYNCRE.test(l))}
 function fromSync(text,src){
   const out=[];
@@ -2443,6 +2485,7 @@ function fromSync(text,src){
           else if(/^sever/.test(k2))o.severity=/impit/.test(norm(v))?"impitoyable":/norm/.test(norm(v))?"normal":"severe";
           else if(/^grace|^grâce|^pardon/.test(k2))o.grace=1;
           else if(/^eau/.test(k2))o.waterL=parseFloat(v.replace(",","."))||null;
+          else if(/^pas|^step/.test(k2))o.stepGoal=parseInt(v.replace(/[^0-9]/g,""),10)||null;
           else if(/^pompe|^push/.test(k2))o.tpush=parseInt(v,10);
           else if(/^squat/.test(k2))o.tsquat=parseInt(v,10);
           else if(/^gainage|^core/.test(k2))o.tcore=parseInt(v,10);
@@ -2468,6 +2511,12 @@ function fromSync(text,src){
       const a=String(p[2]||"").trim(),b=String(p[3]||"").trim();
       if(/^\d{1,2}:\d{2}$/.test(a)&&/^\d{1,2}:\d{2}$/.test(b))
         out.push({k:"j",d:d,end:a.padStart(5,"0"),start:b.padStart(5,"0"),src:src});
+    }else if(kind==="pas"){
+      const v=parseInt(String(p[2]).replace(/[^0-9]/g,""),10);
+      if(v>0&&v<200000)out.push({k:"p",d:d,v:v,src:src});
+    }else if(kind==="depense"){
+      const v=Math.round(parseFloat(String(p[2]).replace(",",".")));
+      if(v>200&&v<12000)out.push({k:"dep",d:d,v:v,src:src});
     }else if(kind==="eau"){
       let v=parseFloat(String(p[2]).replace(",","."));
       if(isNaN(v))return;
@@ -2510,6 +2559,10 @@ function isDup(it){
     !["fat","mus","visc","tmb"].some(k=>it[k]&&!w[k]));
   if(it.k==="s"){const dd=S.days[it.d];return!!(dd&&dd.sleep!==null&&dd.sleep!==undefined)}
   if(it.k==="e"){const dd=S.days[it.d];return!!(dd&&dd.water===it.v)}
+  /* Pas et depense montent au fil de la journee : seule une valeur qui
+     n'apporte rien de plus est un doublon. */
+  if(it.k==="p"){const dd=S.days[it.d];return!!(dd&&(dd.steps||0)>=it.v)}
+  if(it.k==="dep"){const dd=S.days[it.d];return!!(dd&&(dd.burn||0)>=it.v)}
   if(it.k==="j"){const dd=S.days[it.d];return!!(dd&&dd.eatStart===it.start)}
   if(it.k==="rep"||it.k==="cfg")return false;
   if(it.k==="m"){const dd=S.days[it.d];return!!(dd&&dd.food&&dd.food.some(f=>f.n===it.n&&f.k===it.v&&f.m===it.meal))}
@@ -2527,11 +2580,13 @@ function showPreview(items){
     $("#imp-note").textContent="Le Système n'a trouvé ni course, ni pesée, ni nuit dans ce contenu. Vérifie qu'il contient une date et une distance/durée.";
     return;
   }
-  const lbl={r:"Course",w:"Pesée",s:"Sommeil",e:"Eau",m:"Repas",j:"Jeûne",rep:"Repos",cfg:"Réglage"};
+  const lbl={r:"Course",w:"Pesée",s:"Sommeil",e:"Eau",m:"Repas",j:"Jeûne",rep:"Repos",cfg:"Réglage",p:"Pas",dep:"Dépense"};
   $("#prev").innerHTML=PENDING.map((it,i)=>{
     const dup=isDup(it);
     const txt=it.k==="r"?nb(it.dist,2)+" km en "+fmtTime(it.t)+" ("+fmtTime(it.t/it.dist)+"/km)"
       :it.k==="w"?nb(it.v,1)+" kg"
+      :it.k==="p"?nb(it.v)+" pas"
+      :it.k==="dep"?nb(it.v)+" kcal dépensées"
       :it.k==="e"?nb(it.v/1000,2)+" L"
       :it.k==="j"?it.end+" → "+it.start
       :it.k==="rep"?(it.off?"levé":ACT[it.act]+" "+nb(it.km,1)+" km jusqu’au "+fmtDate(it.until))
@@ -2573,6 +2628,8 @@ function appliquerImport(it){
     ns++;
   }
   if(it.k==="e"){D(it.d).water=it.v;ne++}
+  if(it.k==="p")D(it.d).steps=it.v;
+  if(it.k==="dep")D(it.d).burn=it.v;
   if(it.k==="rep"){
     S.rest=it.off?{on:false,until:null,act:S.rest.act||"marche",km:S.rest.km||2,charge:1}
                  :{on:true,until:it.until,act:it.act,km:it.km,charge:it.charge||1};
@@ -2607,7 +2664,7 @@ function appliquerImport(it){
 
 function doImport(){
   const boxes=$$("#prev input[type=checkbox]");
-  let nr=0,nw=0,ns=0,ne=0,nm=0,nj=0,nc=0;
+  let nr=0,nw=0,ns=0,ne=0,nm=0,nj=0,nc=0,np=0;
   boxes.forEach(b=>{
     if(!b.checked)return;
     const it=PENDING[+b.dataset.i];
@@ -2615,6 +2672,7 @@ function doImport(){
     if(it.k==="r")nr++; if(it.k==="w")nw++; if(it.k==="s")ns++;
     if(it.k==="e")ne++; if(it.k==="rep"||it.k==="cfg")nc++;
     if(it.k==="m")nm++; if(it.k==="j")nj++;
+    if(it.k==="p"||it.k==="dep")np++;
   });
   S.runs.sort((a,b)=>a.date<b.date?-1:1);
   S.weights.sort((a,b)=>a.d<b.d?-1:1);
@@ -2626,6 +2684,7 @@ function doImport(){
   if(nm)parts.push(nm+" repas");
   if(nj)parts.push(nj+" jeûne"+(nj>1?"s":""));
   if(nc)parts.push(nc+" réglage"+(nc>1?"s":""));
+  if(np)parts.push(np+" relevé"+(np>1?"s":"")+" d'activité");
   if(!parts.length){toast("Rien à importer","Tout était déjà enregistré.","bad");return}
   logIt("Import : "+parts.join(", "));
   toast("Import terminé",parts.join(" · ")+" ajouté(s).","gold");
@@ -2768,6 +2827,12 @@ function hcVersBloc(d){
   Object.keys(d.sommeil||{}).forEach(j=>{
     const h=d.sommeil[j]; if(h>=2&&h<=16)L.push("SOMMEIL | "+j+" | "+nb(h,2).replace(",","."));
   });
+  Object.keys(d.pas||{}).forEach(j=>{
+    const n=Math.round(d.pas[j]); if(n>0)L.push("PAS | "+j+" | "+n);
+  });
+  Object.keys(d.kcal||{}).forEach(j=>{
+    const v=Math.round(d.kcal[j]); if(v>200)L.push("DEPENSE | "+j+" | "+v);
+  });
   Object.keys(d.poids||{}).forEach(j=>{
     const v=d.poids[j];
     let l="POIDS | "+j+" | "+nb(v,1).replace(",",".");
@@ -2797,6 +2862,8 @@ function hcAuto(){
       if(nw)parts.push(nw+" pesée"+(nw>1?"s":""));
       const ns=items.filter(it=>it.k==="s").length;
       if(ns)parts.push(ns+" nuit"+(ns>1?"s":""));
+      const npas=items.filter(it=>it.k==="p"&&it.d===today()).length;
+      if(npas)parts.push(nb(D().steps)+" pas");
       PENDING=[];
       if(!parts.length)return;
       logIt("Garmin : "+parts.join(", "));
@@ -2915,6 +2982,7 @@ $("#sidelist").addEventListener("click",e=>{
   const el=e.target.closest("[data-side]");if(!el)return;
   const q=S.side[+el.dataset.side];
   if(!q||q.done)return;
+  if(q.auto){toast("Verrouillée",q.s);return}
   q.done=true;bumpStat(q.st[0],q.st[1]);gainXP(q.xp,"Quête secondaire.");
   toast("Bonus",q.t+" · +"+q.xp+" XP");
   checkAch();render();
