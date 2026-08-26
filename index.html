@@ -929,7 +929,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="27/08 · 332";
+const BUILD="27/08 · 333";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -2559,10 +2559,11 @@ function isDup(it){
     !["fat","mus","visc","tmb"].some(k=>it[k]&&!w[k]));
   if(it.k==="s"){const dd=S.days[it.d];return!!(dd&&dd.sleep!==null&&dd.sleep!==undefined)}
   if(it.k==="e"){const dd=S.days[it.d];return!!(dd&&dd.water===it.v)}
-  /* Pas et depense montent au fil de la journee : seule une valeur qui
-     n'apporte rien de plus est un doublon. */
-  if(it.k==="p"){const dd=S.days[it.d];return!!(dd&&(dd.steps||0)>=it.v)}
-  if(it.k==="dep"){const dd=S.days[it.d];return!!(dd&&(dd.burn||0)>=it.v)}
+  /* Pas et depense sont des releves, pas des ajouts : seule une valeur
+     identique n'apprend rien. Refuser les valeurs plus basses figerait une
+     mesure erronee pour la journee entiere, sans moyen de la corriger. */
+  if(it.k==="p"){const dd=S.days[it.d];return!!(dd&&(dd.steps||0)===it.v)}
+  if(it.k==="dep"){const dd=S.days[it.d];return!!(dd&&(dd.burn||0)===it.v)}
   if(it.k==="j"){const dd=S.days[it.d];return!!(dd&&dd.eatStart===it.start)}
   if(it.k==="rep"||it.k==="cfg")return false;
   if(it.k==="m"){const dd=S.days[it.d];return!!(dd&&dd.food&&dd.food.some(f=>f.n===it.n&&f.k===it.v&&f.m===it.meal))}
