@@ -39,6 +39,14 @@ if "health.connect" not in s:
              s,count=1)
 # Health Connect exige un niveau d'API recent
 s=re.sub(r"minSdkVersion\s+[\w.]+", "minSdkVersion 26", s)
+# Capacitor compile le Java en 17 : Kotlin doit viser la meme cible
+if "jvmTarget" not in s:
+    s+="""
+
+android {
+    kotlinOptions { jvmTarget = '17' }
+}
+"""
 io.open(p,"w",encoding="utf-8").write(s)
 print("dependances ajoutees")
 PY
