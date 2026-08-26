@@ -929,7 +929,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="27/08 · 333";
+const BUILD="27/08 · 334";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -2513,10 +2513,10 @@ function fromSync(text,src){
         out.push({k:"j",d:d,end:a.padStart(5,"0"),start:b.padStart(5,"0"),src:src});
     }else if(kind==="pas"){
       const v=parseInt(String(p[2]).replace(/[^0-9]/g,""),10);
-      if(v>0&&v<200000)out.push({k:"p",d:d,v:v,src:src});
+      if(v>=0&&v<200000)out.push({k:"p",d:d,v:v,src:src});
     }else if(kind==="depense"){
       const v=Math.round(parseFloat(String(p[2]).replace(",",".")));
-      if(v>200&&v<12000)out.push({k:"dep",d:d,v:v,src:src});
+      if(v===0||(v>200&&v<12000))out.push({k:"dep",d:d,v:v,src:src});
     }else if(kind==="eau"){
       let v=parseFloat(String(p[2]).replace(",","."));
       if(isNaN(v))return;
@@ -2586,8 +2586,8 @@ function showPreview(items){
     const dup=isDup(it);
     const txt=it.k==="r"?nb(it.dist,2)+" km en "+fmtTime(it.t)+" ("+fmtTime(it.t/it.dist)+"/km)"
       :it.k==="w"?nb(it.v,1)+" kg"
-      :it.k==="p"?nb(it.v)+" pas"
-      :it.k==="dep"?nb(it.v)+" kcal dépensées"
+      :it.k==="p"?(it.v?nb(it.v)+" pas":"pas remis à zéro")
+      :it.k==="dep"?(it.v?nb(it.v)+" kcal dépensées":"dépense remise à zéro")
       :it.k==="e"?nb(it.v/1000,2)+" L"
       :it.k==="j"?it.end+" → "+it.start
       :it.k==="rep"?(it.off?"levé":ACT[it.act]+" "+nb(it.km,1)+" km jusqu’au "+fmtDate(it.until))
