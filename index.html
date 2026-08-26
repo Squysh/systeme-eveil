@@ -858,7 +858,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 220";
+const BUILD="24/08 · 221";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -1301,9 +1301,9 @@ function finishQuest(id,silent){
 }
 /* Décocher une quête manuelle : rend les points, la statistique, le volume
    compté dans les paliers, et le bonus de journée s'il avait été accordé. */
-function unfinishQuest(id){
-  const q=S.quests.find(x=>x.id===id);
-  if(!q||!q.done)return false;
+/* Rend tout ce qu'une validation avait accorde : points, statistique,
+   volume compte dans les paliers, et le bonus de journee s'il etait acquis. */
+function revertQuest(q){
   q.done=false;
   bumpStat(q.st[0],-q.st[1]);
   revokeXP(q.xp);
@@ -1314,6 +1314,11 @@ function unfinishQuest(id){
     bumpStat("DIS",-.4);
     S.dayBonus=0;
   }
+}
+function unfinishQuest(id){
+  const q=S.quests.find(x=>x.id===id);
+  if(!q||!q.done)return false;
+  revertQuest(q);
   return true;
 }
 
@@ -1342,15 +1347,25 @@ function healQuests(){
 }
 
 /* validation automatique du trio suivi */
+/* Les quetes suivies collent a la donnee dans les deux sens : elles se
+   valident quand la cible est atteinte, et se decochent si on repasse
+   dessous — un repas supprime, un compteur d'eau remis a zero. */
 function autoQuests(){
   const t=today(),d=D(t),c=cible(t),e=eaten(t);
-  if(c&&d.food.length&&Math.abs(e-c)<=150)finishQuest("kcal",true);
-  if(d.water>=waterGoal())finishQuest("water",true);
-  if(d.sleep!==null&&d.sleep>=S.sleepGoal-0.25)finishQuest("sleep",true);
-  const qr=S.quests.find(q=>q.id==="run");
-  if(qr&&!qr.done&&distDuJour(qr.act||"course",t)>=qr.n)finishQuest("run",true);
-  const qf=S.quests.find(q=>q.id==="flex");
-  if(qf&&!qf.done&&(d.flexSec||0)>=qf.n*60)finishQuest("flex",true);
+  const qr=S.quests.find(q=>q.id==="run"),qf=S.quests.find(q=>q.id==="flex");
+  const etat={
+    kcal:!!(c&&d.food.length&&Math.abs(e-c)<=150),
+    water:d.water>=waterGoal(),
+    sleep:d.sleep!==null&&d.sleep>=S.sleepGoal-0.25,
+    run:!!(qr&&distDuJour(qr.act||"course",t)>=qr.n),
+    flex:!!(qf&&(d.flexSec||0)>=qf.n*60)
+  };
+  Object.keys(etat).forEach(id=>{
+    const q=S.quests.find(x=>x.id===id);
+    if(!q)return;
+    if(etat[id]&&!q.done)finishQuest(id,true);
+    else if(!etat[id]&&q.done)revertQuest(q);
+  });
 }
 
 /* ================= titres ================= */
