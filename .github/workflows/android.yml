@@ -63,6 +63,11 @@ jobs:
       - name: Generer le projet Android
         run: npx cap add android
 
+      - name: Greffer le module Health Connect
+        run: |
+          chmod +x native/patch-android.sh
+          ./native/patch-android.sh
+
       - name: Cle de signature stable
         # Une signature constante permet d'installer les mises a jour par-dessus
         # l'existante, sans desinstaller ni perdre les donnees locales.
