@@ -927,7 +927,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="26/08 · 310";
+const BUILD="27/08 · 320";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -2768,10 +2768,10 @@ function hcVersBloc(d){
 function hcLire(){
   const m=HC();if(!m)return;
   $("#hc-etat").textContent="Lecture en cours…";
-  m.lire({jours:14}).then(d=>{
+  m.lire({jours:90}).then(d=>{
     if(!d.ok){$("#hc-etat").textContent="Erreur de lecture : "+(d.erreur||"inconnue");return}
     const bloc=hcVersBloc(d);
-    if(!bloc){$("#hc-etat").textContent="Health Connect n'a rien à donner sur 14 jours. Vérifie que Garmin Connect y écrit bien.";return}
+    if(!bloc){$("#hc-etat").textContent="Health Connect n'a rien à donner sur 90 jours. Vérifie que Garmin Connect y écrit bien.";return}
     $("#paste").value=bloc;
     showPreview(fromSync(bloc,"Garmin"));
     $("#hc-etat").textContent="Données récupérées. Vérifie l'aperçu ci-dessous puis valide l'import.";
@@ -3033,7 +3033,7 @@ $("#b-hc-diag").addEventListener("click",()=>{
   const m=HC(),z=$("#hc-diag");
   if(!m){z.hidden=false;z.textContent="Module natif absent : tu es sur le web ou sur iPhone.";return}
   z.hidden=false;z.textContent="Lecture…";
-  Promise.all([m.status(),m.lire({jours:14}).catch(e=>({erreurLecture:String(e)}))])
+  Promise.all([m.status(),m.lire({jours:90}).catch(e=>({erreurLecture:String(e)}))])
     .then(([st,d])=>{
       const r={statut:st,seances:(d.seances||[]).length,
         exempleSeance:(d.seances||[])[0]||null,
