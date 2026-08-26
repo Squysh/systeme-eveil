@@ -737,6 +737,10 @@ input.bad,select.bad{border-color:var(--danger)!important;box-shadow:0 0 10px rg
         <button data-w="1">+1</button>
         <button data-w="5">+5</button>
         <button data-w="10">+10</button>
+      </div>
+      <div class="wtr" style="margin-top:6px">
+        <button data-w="-1" class="und">−1</button>
+        <button data-w="-5" class="und">−5</button>
         <button data-w="clear" class="und">Effacer</button>
       </div>
       <p class="tiny" id="wt-verres" style="margin-top:8px"></p>
@@ -858,7 +862,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="24/08 · 221";
+const BUILD="24/08 · 230";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -2841,7 +2845,8 @@ $("#b-customfood").addEventListener("click",()=>{
 });
 /* Les boutons comptent en verres : c'est l'unite dans laquelle on boit. */
 const VERRE=250;
-$(".wtr").addEventListener("click",e=>{
+$("#s-day").addEventListener("click",e=>{
+  if(!e.target.closest(".wtr"))return;
   const b=e.target.closest("[data-w]");if(!b)return;
   const d=D();
   if(b.dataset.w==="clear"){
