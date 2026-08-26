@@ -929,7 +929,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="27/08 · 334";
+const BUILD="27/08 · 335";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -1435,6 +1435,13 @@ function healQuests(){
     });
   });
   S.quests=S.quests.filter(q=>q.st&&q.id);
+  /* Les quetes secondaires du jour sont enregistrees telles quelles : une
+     definition enrichie apres coup ne les atteindrait jamais. On rafraichit
+     leur description depuis la source, en gardant ce qui est deja valide. */
+  if(S.side&&S.side.length)S.side=genSide().map(f=>{
+    const q=S.side.find(x=>x.id===f.id);
+    return q?Object.assign(f,{done:!!q.done}):f;
+  });
 }
 
 /* validation automatique du trio suivi */
