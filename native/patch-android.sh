@@ -87,6 +87,8 @@ perms="""
     <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED" />
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
     <uses-permission android:name="android.permission.health.READ_BODY_FAT" />
+    <uses-permission android:name="android.permission.health.READ_RESTING_HEART_RATE" />
+    <uses-permission android:name="android.permission.health.READ_HEART_RATE_VARIABILITY" />
 """
 if "READ_STEPS" not in s:
     s=s.replace("</manifest>", perms+"\n    <queries>\n        <package android:name=\"com.google.android.apps.healthdata\" />\n    </queries>\n</manifest>",1)

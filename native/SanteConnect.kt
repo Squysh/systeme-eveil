@@ -7,7 +7,10 @@ import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.records.BodyFatRecord
 import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
+import androidx.health.connect.client.records.ExerciseSegment
 import androidx.health.connect.client.records.HeartRateRecord
+import androidx.health.connect.client.records.HeartRateVariabilityRmssdRecord
+import androidx.health.connect.client.records.RestingHeartRateRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.TotalCaloriesBurnedRecord
@@ -48,6 +51,8 @@ class SanteConnect : Plugin() {
         androidx.health.connect.client.permission.HealthPermission.getReadPermission(HeartRateRecord::class),
         androidx.health.connect.client.permission.HealthPermission.getReadPermission(ExerciseSessionRecord::class),
         androidx.health.connect.client.permission.HealthPermission.getReadPermission(DistanceRecord::class),
+        androidx.health.connect.client.permission.HealthPermission.getReadPermission(RestingHeartRateRecord::class),
+        androidx.health.connect.client.permission.HealthPermission.getReadPermission(HeartRateVariabilityRmssdRecord::class),
         androidx.health.connect.client.permission.HealthPermission.getReadPermission(TotalCaloriesBurnedRecord::class),
         androidx.health.connect.client.permission.HealthPermission.getReadPermission(WeightRecord::class),
         androidx.health.connect.client.permission.HealthPermission.getReadPermission(BodyFatRecord::class)
@@ -61,6 +66,12 @@ class SanteConnect : Plugin() {
         ExerciseSessionRecord.EXERCISE_TYPE_WALKING -> "marche"
         ExerciseSessionRecord.EXERCISE_TYPE_BIKING,
         ExerciseSessionRecord.EXERCISE_TYPE_BIKING_STATIONARY -> "velo"
+        ExerciseSessionRecord.EXERCISE_TYPE_STRETCHING,
+        ExerciseSessionRecord.EXERCISE_TYPE_YOGA,
+        ExerciseSessionRecord.EXERCISE_TYPE_PILATES -> "souplesse"
+        ExerciseSessionRecord.EXERCISE_TYPE_STRENGTH_TRAINING,
+        ExerciseSessionRecord.EXERCISE_TYPE_WEIGHTLIFTING,
+        ExerciseSessionRecord.EXERCISE_TYPE_CALISTHENICS -> "renfort"
         else -> "autre"
     }
 
@@ -180,6 +191,21 @@ class SanteConnect : Plugin() {
                         o.put("kcal", c.readRecords(ReadRecordsRequest(TotalCaloriesBurnedRecord::class, plage))
                             .records.sumOf { it.energy.inKilocalories })
                     } catch (e: Throwable) { noter("depense", e) }
+                    // Une seance de force decoupee par la montre porte ses repetitions
+                    // dans ses segments. Toutes les montres ne les remplissent pas.
+                    var pompes = 0; var squats = 0; var planche = 0L
+                    s.segments.forEach { g: ExerciseSegment ->
+                        val r = g.repetitions
+                        when (g.segmentType) {
+                            ExerciseSegment.EXERCISE_SEGMENT_TYPE_PUSH_UP -> pompes += r
+                            ExerciseSegment.EXERCISE_SEGMENT_TYPE_SQUAT -> squats += r
+                            ExerciseSegment.EXERCISE_SEGMENT_TYPE_PLANK ->
+                                planche += java.time.Duration.between(g.startTime, g.endTime).seconds
+                        }
+                    }
+                    if (pompes > 0) o.put("pompes", pompes)
+                    if (squats > 0) o.put("squats", squats)
+                    if (planche > 0) o.put("gainage", planche)
                     try {
                         val bpm = c.readRecords(ReadRecordsRequest(HeartRateRecord::class, plage))
                             .records.flatMap { it.samples }.map { it.beatsPerMinute }
@@ -192,14 +218,26 @@ class SanteConnect : Plugin() {
 
             // Sommeil, en heures par journee de reveil
             val sommeil = JSObject()
+            val profond = JSObject()
+            val paradoxal = JSObject()
             try {
                 c.readRecords(ReadRecordsRequest(SleepSessionRecord::class, filtre)).records.forEach { s ->
                     val k = jour(s.endTime)
                     val h = java.time.Duration.between(s.startTime, s.endTime).seconds / 3600.0
                     sommeil.put(k, (sommeil.optDouble(k, 0.0)) + h)
+                    var pf = 0L; var rem = 0L
+                    s.stages.forEach { st ->
+                        val d2 = java.time.Duration.between(st.startTime, st.endTime).seconds
+                        if (st.stage == SleepSessionRecord.STAGE_TYPE_DEEP) pf += d2
+                        if (st.stage == SleepSessionRecord.STAGE_TYPE_REM) rem += d2
+                    }
+                    if (pf > 0) profond.put(k, profond.optDouble(k, 0.0) + pf / 3600.0)
+                    if (rem > 0) paradoxal.put(k, paradoxal.optDouble(k, 0.0) + rem / 3600.0)
                 }
             } catch (e: Throwable) { noter("sommeil", e) }
             res.put("sommeil", sommeil)
+            res.put("profond", profond)
+            res.put("paradoxal", paradoxal)
 
             // Pas
             val pas = JSObject()
@@ -220,6 +258,24 @@ class SanteConnect : Plugin() {
                 }
             } catch (e: Throwable) { noter("depense journaliere", e) }
             res.put("kcal", kcal)
+
+            // Frequence cardiaque de repos et variabilite : les deux marqueurs
+            // qui disent comment le corps encaisse la charge.
+            val fcRepos = JSObject()
+            try {
+                c.readRecords(ReadRecordsRequest(RestingHeartRateRecord::class, filtre)).records.forEach { r ->
+                    fcRepos.put(jour(r.time), r.beatsPerMinute.toDouble())
+                }
+            } catch (e: Throwable) { noter("FC de repos", e) }
+            res.put("fcRepos", fcRepos)
+
+            val vfc = JSObject()
+            try {
+                c.readRecords(ReadRecordsRequest(HeartRateVariabilityRmssdRecord::class, filtre)).records.forEach { r ->
+                    vfc.put(jour(r.time), r.heartRateVariabilityMillis)
+                }
+            } catch (e: Throwable) { noter("variabilite cardiaque", e) }
+            res.put("vfc", vfc)
 
             // Poids et masse grasse
             val poids = JSObject()

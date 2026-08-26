@@ -118,6 +118,15 @@ input,select,textarea{font-family:inherit}
 
 /* ---------- tuiles chiffrees ---------- */
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+/* Les courbes vivent dans leur propre module : les ecrans de pilotage
+   restent sans graphique, comme demande. */
+.graph{margin:14px 0 10px;padding:12px 10px 6px;border-radius:14px;
+  border:1px solid var(--bord-doux);background:rgba(0,0,0,.22)}
+.graph svg{display:block;width:100%;height:auto;overflow:visible}
+.graph .vide{padding:20px 4px;text-align:center;color:var(--creme-3);
+  font-family:var(--f-mono);font-size:.8rem}
+.gx{font-family:var(--f-mono);font-size:7px;fill:var(--creme-3)}
+.gy{font-family:var(--f-mono);font-size:7px;fill:var(--creme-3)}
 .stat{
   position:relative;overflow:hidden;padding:11px 13px;border-radius:14px;
   border:1px solid var(--bord-doux);background:rgba(227,205,139,.07);
@@ -883,12 +892,14 @@ POIDS   | 2026-08-23 | 96.7 | mg=26.8 | mm=39.7 | visc=11 | tmb=2099
 SOMMEIL | 2026-08-23 | 7:25 | score=92 | profond=1:42 | rem=1:56 | fc=55 | vfc=85 | bb=74
 EAU     | 2026-08-23 | 2.0
 PAS     | 2026-08-23 | 9420
+SOUPLESSE | 2026-08-23 | 12
+RENFORT | 2026-08-23 | pompes=40 | squats=50 | gainage=120
 DEPENSE | 2026-08-23 | 2960
 JEUNE   | 2026-08-23 | 20:30 | 08:15
 REPOS   | 2026-08-31 | marche | 2
 REGLAGE | sommeil=7 | proteines=1.4
 REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
-        <p class="tiny" style="margin:8px 0 0">Une ligne par élément, « auj » pour aujourd'hui. Une course prend la distance et le temps totaux, puis le type (endurance, tempo, fractionné, trail) et des champs facultatifs : <b>dp</b> dénivelé positif, <b>fc</b> fréquence cardiaque moyenne, <b>cad</b> cadence, <b>kcal</b> calories de la montre, et <b>bloc</b> = distance/temps de la partie courue, hors échauffement et récupération. Le bloc seul sert à projeter le chrono sur 5 km ; le total sert au volume et aux calories. Un repas prend le nom, les kcal, puis en facultatif les grammes de <b>protéines</b> et de <b>lipides</b>. Les types <b>marche</b> et <b>vélo</b> sont acceptés comme une course. <b>PAS</b> et <b>DEPENSE</b> viennent de la montre : les pas valident seuls la quête annexe, et la dépense mesurée remplace l'estimation quand elle est plus haute — jamais plus basse, une journée en cours n'étant comptée qu'à moitié.</p>
+        <p class="tiny" style="margin:8px 0 0">Une ligne par élément, « auj » pour aujourd'hui. Une course prend la distance et le temps totaux, puis le type (endurance, tempo, fractionné, trail) et des champs facultatifs : <b>dp</b> dénivelé positif, <b>fc</b> fréquence cardiaque moyenne, <b>cad</b> cadence, <b>kcal</b> calories de la montre, et <b>bloc</b> = distance/temps de la partie courue, hors échauffement et récupération. Le bloc seul sert à projeter le chrono sur 5 km ; le total sert au volume et aux calories. Un repas prend le nom, les kcal, puis en facultatif les grammes de <b>protéines</b> et de <b>lipides</b>. Les types <b>marche</b> et <b>vélo</b> sont acceptés comme une course. <b>PAS</b> et <b>DEPENSE</b> viennent de la montre : les pas valident seuls la quête annexe, et la dépense mesurée remplace l'estimation quand elle est plus haute — jamais plus basse, une journée en cours n'étant comptée qu'à moitié. <b>SOUPLESSE</b> prend des minutes tenues, <b>RENFORT</b> des répétitions : ces deux-là valident la quête correspondante sans jamais la retirer — une séance faite au sol sans montre reste une séance faite.</p>
       </details>
       <div class="drop" id="drop">
         <b>Déposer un fichier</b>
@@ -913,6 +924,35 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
       <ul class="hist" id="wlist"></ul>
     </div>
   </section>
+
+  <section class="screen" id="s-trend">
+    <div class="panel">
+      <h2>Poids</h2>
+      <div class="stats" id="tr-wstats"></div>
+      <div class="graph" id="tr-wchart"></div>
+      <p class="tiny" id="tr-wnote" style="margin-bottom:0"></p>
+    </div>
+
+    <div class="panel">
+      <h2>Sommeil</h2>
+      <div class="stats" id="tr-sstats"></div>
+      <div class="graph" id="tr-schart"></div>
+      <p class="tiny" id="tr-snote" style="margin-bottom:0"></p>
+    </div>
+
+    <div class="panel">
+      <h2>Activité</h2>
+      <div class="stats" id="tr-astats"></div>
+      <div class="graph" id="tr-achart"></div>
+      <p class="tiny" id="tr-anote" style="margin-bottom:0"></p>
+    </div>
+
+    <div class="panel">
+      <h2>Constantes</h2>
+      <div class="stats" id="tr-cstats"></div>
+      <p class="tiny" id="tr-cnote" style="margin-bottom:0"></p>
+    </div>
+  </section>
 </div>
 
 <nav class="nav" id="nav" hidden>
@@ -921,6 +961,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
   <button data-go="run"><svg viewBox="0 0 24 24"><circle cx="14" cy="5" r="2"/><path d="M6 21l3-6 4-2 1-4-4 2-2 3"/><path d="M13 13l3 3 1 5"/></svg><span id="nav-run">Course</span></button>
   <button data-go="flex"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><path d="M12 7v6M12 13l-4 8M12 13l4 8M5 9l7 2 7-2"/></svg>Souple</button>
   <button data-go="day"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 6a8 8 0 0016 0"/><path d="M12 14v6M8 20h8"/></svg>Journée</button>
+  <button data-go="trend"><svg viewBox="0 0 24 24"><path d="M4 19h16"/><path d="M4 15l5-5 3 3 6-7"/><path d="M15 6h4v4"/></svg>Courbes</button>
   <button data-go="body"><svg viewBox="0 0 24 24"><path d="M4 17c0-5 3.6-8 8-8s8 3 8 8"/><path d="M12 17V9"/><circle cx="12" cy="19" r="1.6"/></svg>Corps</button>
 </nav>
 
@@ -929,7 +970,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="27/08 · 335";
+const BUILD="27/08 · 336";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -949,7 +990,7 @@ const nb=(n,d)=>(n===null||n===undefined||(typeof n==="number"&&isNaN(n)))
 
 /* ================= état ================= */
 const blank=()=>({
-  name:"Joueur",h:175,age:25,sex:"h",goalW:70,goalPace:300,fit:1,deficit:400,sleepGoal:7,stepGoal:8000,
+  name:"Joueur",h:175,age:25,sex:"h",goalW:70,goalPace:300,fit:1,deficit:400,sleepGoal:7,stepGoal:6000,
   lvl:1,xp:0,streak:0,best:0,
   stats:{FOR:10,END:10,SOU:10,VIT:10,DIS:10},
   day:null,quests:[],side:[],
@@ -1038,7 +1079,7 @@ function D(d){
   if(!S.days[d])S.days[d]={food:[],water:0,sleep:null};
   const o=S.days[d];
   o.food=o.food||[];o.water=o.water||0;o.flexSec=o.flexSec||0;
-  o.steps=o.steps||0;o.burn=o.burn||0;
+  o.steps=o.steps||0;o.burn=o.burn||0;o.rf=o.rf||null;
   if(o.sleep===undefined)o.sleep=null;
   if(o.eatEnd===undefined)o.eatEnd=null;
   if(o.eatStart===undefined)o.eatStart=null;
@@ -1451,7 +1492,7 @@ function healQuests(){
 /* En repos on ne demande pas le meme volume de marche : la charge s'y applique
    comme au renforcement. */
 function stepGoal(){
-  const g=Math.max(1000,+S.stepGoal||8000);
+  const g=Math.max(1000,+S.stepGoal||6000);
   const ch=restOn()?clamp(+S.rest.charge||1,.2,1):1;
   return Math.round(g*ch/500)*500;
 }
@@ -1470,6 +1511,13 @@ function autoQuests(){
     if(!q)return;
     if(etat[id]&&!q.done)finishQuest(id,true);
     else if(!etat[id]&&q.done)revertQuest(q);
+  });
+  /* Le renforcement releve par la montre valide la quete, mais ne la retire
+     jamais : une seance faite au sol sans montre reste une seance faite. */
+  const rf=d.rf;
+  if(rf)["push","squat","core"].forEach(id=>{
+    const q=S.quests.find(x=>x.id===id);
+    if(q&&!q.done&&(rf[id]||0)>=q.n)finishQuest(id,true);
   });
   /* Les pas viennent de la montre : personne n'a a cocher cette case, et une
      correction a la baisse doit pouvoir reprendre les points accordes. */
@@ -1809,6 +1857,187 @@ function renderQuests(){
   $("#q-count").textContent=dn+" / "+S.quests.length;
   $("#q-bar").style.width=(dn/S.quests.length*100)+"%";
   $("#q-warn").textContent=dn===S.quests.length?"Quête journalière accomplie.":"Il reste "+(S.quests.length-dn)+" quête(s) avant minuit.";
+}
+
+/* ================= module Courbes =================
+   Un espace a part, ouvert a la demande. Les ecrans de pilotage restent
+   sans graphique : ici on regarde le passe, ailleurs on agit sur le jour. */
+
+const GW=320,GH=92;                       /* repere interne, mis a l'echelle par le CSS */
+const esc=t=>String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+function vide(msg){return '<div class="vide">'+esc(msg)+"</div>"}
+
+/* Courbe simple avec aire sous le trait. Les points sont espaces regulierement :
+   c'est la suite des mesures qui compte, pas leur position exacte dans le temps. */
+function svgLigne(vals,opt){
+  opt=opt||{};
+  const n=vals.length;
+  if(n<2)return vide(opt.vide||"Deux mesures suffisent pour tracer une courbe.");
+  let lo=Math.min.apply(null,vals),hi=Math.max.apply(null,vals);
+  if(opt.min!==undefined)lo=Math.min(lo,opt.min);
+  if(opt.max!==undefined)hi=Math.max(hi,opt.max);
+  const marge=(hi-lo)*.15||1; lo-=marge; hi+=marge;
+  const X=i=>18+i*(GW-26)/(n-1);
+  const Y=v=>GH-14-((v-lo)/(hi-lo))*(GH-26);
+  const pts=vals.map((v,i)=>X(i)+","+Y(v));
+  const col=opt.col||"var(--or)";
+  const aire="M"+X(0)+","+(GH-14)+" L"+pts.join(" L")+" L"+X(n-1)+","+(GH-14)+" Z";
+  let cible="";
+  if(opt.cible!==undefined&&opt.cible>=lo&&opt.cible<=hi)
+    cible='<line x1="18" y1="'+Y(opt.cible)+'" x2="'+(GW-8)+'" y2="'+Y(opt.cible)+
+          '" stroke="var(--or-sourd)" stroke-width=".7" stroke-dasharray="3 3"/>';
+  return '<svg viewBox="0 0 '+GW+" "+GH+'" role="img" aria-label="'+esc(opt.alt||"courbe")+'">'+
+    '<defs><linearGradient id="g-'+opt.id+'" x1="0" y1="0" x2="0" y2="1">'+
+    '<stop offset="0" stop-color="'+col+'" stop-opacity=".28"/>'+
+    '<stop offset="1" stop-color="'+col+'" stop-opacity="0"/></linearGradient></defs>'+
+    cible+
+    '<path d="'+aire+'" fill="url(#g-'+opt.id+')"/>'+
+    '<polyline points="'+pts.join(" ")+'" fill="none" stroke="'+col+
+      '" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>'+
+    '<circle cx="'+X(n-1)+'" cy="'+Y(vals[n-1])+'" r="2.6" fill="'+col+'"/>'+
+    '<text class="gy" x="2" y="'+(Y(hi-marge)+3)+'">'+esc(opt.fmt?opt.fmt(hi-marge):Math.round(hi-marge))+"</text>"+
+    '<text class="gy" x="2" y="'+(Y(lo+marge)+3)+'">'+esc(opt.fmt?opt.fmt(lo+marge):Math.round(lo+marge))+"</text>"+
+    (opt.g?'<text class="gx" x="18" y="'+GH+'">'+esc(opt.g)+"</text>":"")+
+    (opt.d?'<text class="gx" x="'+(GW-8)+'" y="'+GH+'" text-anchor="end">'+esc(opt.d)+"</text>":"")+
+    "</svg>";
+}
+
+/* Barres : une par jour ou par semaine. Le seuil marque l'objectif. */
+function svgBarres(items,opt){
+  opt=opt||{};
+  const n=items.length;
+  if(!n)return vide(opt.vide||"Rien d'enregistre pour l'instant.");
+  const hi=Math.max(opt.seuil||0,Math.max.apply(null,items.map(x=>x.v)))||1;
+  const pas=(GW-24)/n, lg=Math.max(2,Math.min(14,pas-2.5));
+  let out="";
+  items.forEach((x,i)=>{
+    const h=Math.max(x.v>0?1.5:0,(x.v/hi)*(GH-26));
+    const px=18+i*pas+(pas-lg)/2;
+    const col=x.v<=0?"var(--bord-doux)"
+      :(opt.seuil&&x.v>=opt.seuil)?"var(--vert)":opt.col||"var(--or)";
+    out+='<rect x="'+px.toFixed(1)+'" y="'+(GH-14-h).toFixed(1)+'" width="'+lg.toFixed(1)+
+         '" height="'+h.toFixed(1)+'" rx="1.6" fill="'+col+'" opacity="'+(x.v<=0?.5:.88)+'"/>';
+  });
+  let seuil="";
+  if(opt.seuil)seuil='<line x1="18" y1="'+(GH-14-(opt.seuil/hi)*(GH-26))+'" x2="'+(GW-6)+
+    '" y2="'+(GH-14-(opt.seuil/hi)*(GH-26))+'" stroke="var(--or-sourd)" stroke-width=".7" stroke-dasharray="3 3"/>';
+  return '<svg viewBox="0 0 '+GW+" "+GH+'" role="img" aria-label="'+esc(opt.alt||"barres")+'">'+
+    seuil+out+
+    '<text class="gy" x="2" y="'+(GH-14-(GH-26))+'">'+esc(opt.fmt?opt.fmt(hi):Math.round(hi))+"</text>"+
+    '<line x1="18" y1="'+(GH-14)+'" x2="'+(GW-6)+'" y2="'+(GH-14)+'" stroke="var(--bord-doux)" stroke-width=".8"/>'+
+    (opt.g?'<text class="gx" x="18" y="'+GH+'">'+esc(opt.g)+"</text>":"")+
+    (opt.d?'<text class="gx" x="'+(GW-6)+'" y="'+GH+'" text-anchor="end">'+esc(opt.d)+"</text>":"")+
+    "</svg>";
+}
+
+const tuile=(k,v)=>'<div class="stat"><div class="k">'+esc(k)+'</div><div class="v">'+v+"</div></div>";
+/* Les N derniers jours, du plus ancien au plus recent. */
+function derniersJours(n){
+  const L=[];
+  for(let i=n-1;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);L.push(ymd(d))}
+  return L;
+}
+/* Pente d'une serie datee, en unites par semaine. Les moindres carres lissent
+   les variations d'eau d'un jour a l'autre, qu'une simple soustraction prendrait
+   pour une perte de gras. */
+function penteHebdo(pts){
+  if(pts.length<3)return null;
+  const t0=new Date(pts[0].d).getTime();
+  const X=pts.map(p=>(new Date(p.d).getTime()-t0)/86400000),Y=pts.map(p=>p.v);
+  const n=X.length,mx=X.reduce((a,b)=>a+b,0)/n,my=Y.reduce((a,b)=>a+b,0)/n;
+  let num=0,den=0;
+  for(let i=0;i<n;i++){num+=(X[i]-mx)*(Y[i]-my);den+=(X[i]-mx)*(X[i]-mx)}
+  if(!den)return null;
+  return num/den*7;
+}
+const signe=v=>(v>0?"+":"")+nb(v,1);
+
+function renderTrend(){
+  /* ---- poids ---- */
+  const W=S.weights.slice().sort((a,b)=>a.d<b.d?-1:1);
+  const w90=W.filter(x=>dayDiff(x.d,today())<=90);
+  $("#tr-wchart").innerHTML=svgLigne(w90.map(x=>x.v),
+    {id:"w",cible:S.goalW,fmt:v=>nb(v,1),alt:"poids sur 90 jours",
+     g:w90.length?fmtDate(w90[0].d):"",d:w90.length?fmtDate(w90[w90.length-1].d):"",
+     vide:"Deux pesées suffisent pour tracer la courbe."});
+  const dep=n=>{
+    const anc=W.filter(x=>dayDiff(x.d,today())>=n);
+    return (anc.length&&W.length)?W[W.length-1].v-anc[anc.length-1].v:null;
+  };
+  const p7=dep(7),p30=dep(30),pente=penteHebdo(W.filter(x=>dayDiff(x.d,today())<=28));
+  $("#tr-wstats").innerHTML=
+    tuile("Actuel",curW()!==null?nb(curW(),1)+" <small>kg</small>":"—")+
+    tuile("Sur 7 jours",p7===null?"—":signe(p7)+" <small>kg</small>")+
+    tuile("Sur 30 jours",p30===null?"—":signe(p30)+" <small>kg</small>")+
+    tuile("Tendance",pente===null?"—":signe(pente)+" <small>kg/sem</small>");
+  const reste=curW()!==null?curW()-S.goalW:null;
+  $("#tr-wnote").textContent=
+    pente===null?"Quelques pesées de plus et la tendance se dégagera. Le trait pointillé marque les "+S.goalW+" kg."
+    :pente>=0?"Le poids ne baisse pas sur les quatre dernières semaines. C'est la tendance qui compte, pas la pesée du jour."
+    :reste!==null&&reste>0?"À ce rythme, "+S.goalW+" kg dans "+Math.ceil(reste/-pente)+" semaines. Une pesée isolée ne veut rien dire : l'eau fait varier le poids d'un kilo d'un jour à l'autre."
+    :"Objectif atteint. La tendance reste à la baisse.";
+
+  /* ---- sommeil ---- */
+  const J21=derniersJours(21),J30=derniersJours(30);
+  const dodo=j=>{const dd=S.days[j];return dd&&dd.sleep?dd.sleep:0};
+  $("#tr-schart").innerHTML=svgBarres(J21.map(j=>({v:dodo(j)})),
+    {seuil:S.sleepGoal,fmt:v=>nb(v,1),alt:"sommeil sur 21 nuits",
+     g:fmtDate(J21[0]),d:"cette nuit",vide:"Aucune nuit enregistrée."});
+  const moy=L=>{const v=L.map(dodo).filter(x=>x>0);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null};
+  const m7=moy(J21.slice(-7)),m30=moy(J30);
+  const dette=J21.slice(-7).map(dodo).filter(x=>x>0).reduce((a,b)=>a+Math.max(0,S.sleepGoal-b),0);
+  const tenues=J21.slice(-7).filter(j=>dodo(j)>=S.sleepGoal-.25).length;
+  $("#tr-sstats").innerHTML=
+    tuile("Moyenne 7 nuits",m7===null?"—":nb(m7,2)+" <small>h</small>")+
+    tuile("Moyenne 30 nuits",m30===null?"—":nb(m30,2)+" <small>h</small>")+
+    tuile("Dette 7 jours",nb(dette,1)+" <small>h</small>")+
+    tuile("Nuits tenues",tenues+" <small>/ 7</small>");
+  $("#tr-snote").textContent=
+    m7===null?"Les nuits arrivent seules depuis la montre."
+    :dette<=2?"Sommeil tenu sur la semaine. C'est là que le corps encaisse la charge."
+    :"Dette de "+nb(dette,1)+" h sur sept nuits. Le manque de sommeil dégrade la récupération avant même la performance.";
+
+  /* ---- activite ---- */
+  const SEM=8,sems=[];
+  for(let i=SEM-1;i>=0;i--){
+    const fin=new Date();fin.setDate(fin.getDate()-i*7);
+    const deb=new Date(fin);deb.setDate(deb.getDate()-6);
+    const a=ymd(deb),b=ymd(fin);
+    sems.push({v:S.runs.filter(r=>r.date>=a&&r.date<=b).reduce((x,r)=>x+r.d,0),a:a,b:b});
+  }
+  $("#tr-achart").innerHTML=svgBarres(sems,{fmt:v=>nb(v,1),alt:"kilometres par semaine",
+    g:fmtDate(sems[0].a),d:"cette semaine",vide:"Aucune séance enregistrée."});
+  const km7=S.runs.filter(r=>dayDiff(r.date,today())<7).reduce((a,r)=>a+r.d,0);
+  const s30=S.runs.filter(r=>dayDiff(r.date,today())<30).length;
+  const b5=best5k();
+  $("#tr-astats").innerHTML=
+    tuile("7 derniers jours",nb(km7,1)+" <small>km</small>")+
+    tuile("Séances 30 jours",s30)+
+    tuile("Total",nb(totalKm(),0)+" <small>km</small>")+
+    tuile("5 km projeté",b5?fmtTime(b5):"—");
+  $("#tr-anote").textContent=
+    !S.runs.length?"Les séances arrivent seules depuis la montre."
+    :b5?"Projection calculée sur ta meilleure sortie route — marche, vélo et trail exclus, le dénivelé rend l'allure incomparable. Objectif "+fmtTime(S.goalPace*5)+"."
+    :"Il faut au moins 1,5 km sur route pour projeter un chrono de 5 km.";
+
+  /* ---- constantes ---- */
+  const nuit=k=>J30.map(j=>{const dd=S.days[j];return dd&&dd.sl&&dd.sl[k]?{d:j,v:dd.sl[k]}:null}).filter(Boolean);
+  const fc=nuit("hr"),vfc=nuit("hrv");
+  const der=L=>L.length?L[L.length-1].v:null;
+  const moyL=L=>L.length?L.reduce((a,b)=>a+b.v,0)/L.length:null;
+  $("#tr-cstats").innerHTML=
+    tuile("FC repos",der(fc)!==null?Math.round(der(fc))+" <small>bpm</small>":"—")+
+    tuile("FC moyenne 30 j",moyL(fc)!==null?Math.round(moyL(fc))+" <small>bpm</small>":"—")+
+    tuile("VFC",der(vfc)!==null?Math.round(der(vfc))+" <small>ms</small>":"—")+
+    tuile("VFC moyenne 30 j",moyL(vfc)!==null?Math.round(moyL(vfc))+" <small>ms</small>":"—");
+  const pfc=penteHebdo(fc.slice(-14)),pv=penteHebdo(vfc.slice(-14));
+  $("#tr-cnote").textContent=
+    (!fc.length&&!vfc.length)?"Fréquence cardiaque de repos et variabilité arrivent avec les nuits synchronisées."
+    :((pfc!==null&&pfc<-.5)||(pv!==null&&pv>1))
+      ?"FC de repos en baisse ou variabilité en hausse : le corps encaisse bien la charge actuelle."
+    :((pfc!==null&&pfc>1)||(pv!==null&&pv<-2))
+      ?"FC de repos en hausse ou variabilité en baisse sur deux semaines. Fatigue, stress ou début d'infection : c'est le moment de lever le pied, pas de forcer."
+    :"Ces deux chiffres disent comment tu récupères. Ils ne valent qu'en tendance, jamais sur une nuit isolée.";
 }
 
 function renderProg(){
@@ -2457,10 +2686,12 @@ function sleepExtras(fields){
    SOMMEIL  | 2026-08-23 | 7:12
    EAU      | 2026-08-23 | 2000
    PAS      | 2026-08-23 | 9420
+   SOUPLESSE| 2026-08-23 | 12
+   RENFORT  | 2026-08-23 | pompes=40 | squats=50
    DEPENSE  | 2026-08-23 | 2960
    REPAS    | 2026-08-23 | Midi | Poulet riz brocolis | 620 | 45
    La date accepte aussi « auj ». Une ligne non reconnue est ignorée. */
-const SYNCRE=/^\s*(course|poids|sommeil|eau|repas|jeune|jeûne|repos|reglage|réglage|pas|depense|dépense)\s*\|/i;
+const SYNCRE=/^\s*(course|poids|sommeil|eau|repas|jeune|jeûne|repos|reglage|réglage|pas|depense|dépense|souplesse|renfort)\s*\|/i;
 function isSync(text){return text.split(/\r?\n/).some(l=>SYNCRE.test(l))}
 function fromSync(text,src){
   const out=[];
@@ -2518,6 +2749,19 @@ function fromSync(text,src){
       const a=String(p[2]||"").trim(),b=String(p[3]||"").trim();
       if(/^\d{1,2}:\d{2}$/.test(a)&&/^\d{1,2}:\d{2}$/.test(b))
         out.push({k:"j",d:d,end:a.padStart(5,"0"),start:b.padStart(5,"0"),src:src});
+    }else if(kind==="souplesse"){
+      const v=parseFloat(String(p[2]).replace(",","."));
+      if(v>=0&&v<600)out.push({k:"sou",d:d,v:Math.round(v*60),src:src});
+    }else if(kind==="renfort"){
+      const o={k:"rf",d:d,src:src,push:0,squat:0,core:0};
+      p.slice(2).forEach(f=>{
+        const m2=String(f).match(/^([^=]{1,14})=(.+)$/); if(!m2)return;
+        const k2=norm(m2[1]).trim(),n2=parseInt(String(m2[2]).replace(/[^0-9]/g,""),10)||0;
+        if(/^pompe|^push/.test(k2))o.push=n2;
+        else if(/^squat/.test(k2))o.squat=n2;
+        else if(/^gainage|^core|^planche/.test(k2))o.core=n2;
+      });
+      if(o.push||o.squat||o.core)out.push(o);
     }else if(kind==="pas"){
       const v=parseInt(String(p[2]).replace(/[^0-9]/g,""),10);
       if(v>=0&&v<200000)out.push({k:"p",d:d,v:v,src:src});
@@ -2569,6 +2813,11 @@ function isDup(it){
   /* Pas et depense sont des releves, pas des ajouts : seule une valeur
      identique n'apprend rien. Refuser les valeurs plus basses figerait une
      mesure erronee pour la journee entiere, sans moyen de la corriger. */
+  if(it.k==="sou"){const dd=S.days[it.d];return!!(dd&&(dd.flexSec||0)>=it.v)}
+  /* Un releve de renforcement n'apporte quelque chose que s'il depasse
+     ce que la journee compte deja. */
+  if(it.k==="rf"){const r=(S.days[it.d]||{}).rf;
+    return!!(r&&(r.push||0)>=it.push&&(r.squat||0)>=it.squat&&(r.core||0)>=it.core)}
   if(it.k==="p"){const dd=S.days[it.d];return!!(dd&&(dd.steps||0)===it.v)}
   if(it.k==="dep"){const dd=S.days[it.d];return!!(dd&&(dd.burn||0)===it.v)}
   if(it.k==="j"){const dd=S.days[it.d];return!!(dd&&dd.eatStart===it.start)}
@@ -2588,11 +2837,14 @@ function showPreview(items){
     $("#imp-note").textContent="Le Système n'a trouvé ni course, ni pesée, ni nuit dans ce contenu. Vérifie qu'il contient une date et une distance/durée.";
     return;
   }
-  const lbl={r:"Course",w:"Pesée",s:"Sommeil",e:"Eau",m:"Repas",j:"Jeûne",rep:"Repos",cfg:"Réglage",p:"Pas",dep:"Dépense"};
+  const lbl={r:"Course",w:"Pesée",s:"Sommeil",e:"Eau",m:"Repas",j:"Jeûne",rep:"Repos",cfg:"Réglage",p:"Pas",dep:"Dépense",sou:"Souplesse",rf:"Renfort"};
   $("#prev").innerHTML=PENDING.map((it,i)=>{
     const dup=isDup(it);
     const txt=it.k==="r"?nb(it.dist,2)+" km en "+fmtTime(it.t)+" ("+fmtTime(it.t/it.dist)+"/km)"
       :it.k==="w"?nb(it.v,1)+" kg"
+      :it.k==="sou"?nb(it.v/60,0)+" min d'étirements"
+      :it.k==="rf"?[it.push?it.push+" pompes":"",it.squat?it.squat+" squats":"",
+                    it.core?it.core+" s de gainage":""].filter(Boolean).join(" · ")
       :it.k==="p"?(it.v?nb(it.v)+" pas":"pas remis à zéro")
       :it.k==="dep"?(it.v?nb(it.v)+" kcal dépensées":"dépense remise à zéro")
       :it.k==="e"?nb(it.v/1000,2)+" L"
@@ -2636,6 +2888,12 @@ function appliquerImport(it){
     ns++;
   }
   if(it.k==="e"){D(it.d).water=it.v;ne++}
+  if(it.k==="sou")D(it.d).flexSec=Math.max(D(it.d).flexSec||0,it.v);
+  if(it.k==="rf"){
+    const dd=D(it.d),r=dd.rf||{push:0,squat:0,core:0};
+    dd.rf={push:Math.max(r.push||0,it.push),squat:Math.max(r.squat||0,it.squat),
+           core:Math.max(r.core||0,it.core)};
+  }
   if(it.k==="p")D(it.d).steps=it.v;
   if(it.k==="dep")D(it.d).burn=it.v;
   if(it.k==="rep"){
@@ -2681,6 +2939,7 @@ function doImport(){
     if(it.k==="e")ne++; if(it.k==="rep"||it.k==="cfg")nc++;
     if(it.k==="m")nm++; if(it.k==="j")nj++;
     if(it.k==="p"||it.k==="dep")np++;
+    if(it.k==="sou"||it.k==="rf")nr++;
   });
   S.runs.sort((a,b)=>a.date<b.date?-1:1);
   S.weights.sort((a,b)=>a.d<b.d?-1:1);
@@ -2823,7 +3082,21 @@ function hcStatut(){
 /* Traduit ce que renvoie Health Connect vers le format d'import existant. */
 function hcVersBloc(d){
   const L=[],NL=String.fromCharCode(10);
+  const hm=h=>{const t2=Math.round(h*60);return Math.floor(t2/60)+":"+String(t2%60).padStart(2,"0")};
   (d.seances||[]).forEach(x=>{
+    /* Une seance d'etirement se compte en minutes tenues, pas en kilometres. */
+    if(x.type==="souplesse"&&x.secondes){
+      L.push("SOUPLESSE | "+x.date+" | "+Math.round(x.secondes/60));return;
+    }
+    /* Repetitions relevees par la montre, quand elle les decoupe. */
+    if(x.pompes||x.squats||x.gainage){
+      const f=[];
+      if(x.pompes)f.push("pompes="+x.pompes);
+      if(x.squats)f.push("squats="+x.squats);
+      if(x.gainage)f.push("gainage="+Math.round(x.gainage));
+      L.push("RENFORT | "+x.date+" | "+f.join(" | "));
+    }
+    if(x.type==="renfort")return;
     const km=(x.metres||0)/1000;
     if(km<0.3||!x.secondes)return;
     let t=x.type; if(t==="autre")t="endurance";
@@ -2833,7 +3106,13 @@ function hcVersBloc(d){
     L.push(l);
   });
   Object.keys(d.sommeil||{}).forEach(j=>{
-    const h=d.sommeil[j]; if(h>=2&&h<=16)L.push("SOMMEIL | "+j+" | "+nb(h,2).replace(",","."));
+    const h=d.sommeil[j]; if(!(h>=2&&h<=16))return;
+    let l="SOMMEIL | "+j+" | "+nb(h,2).replace(",",".");
+    if(d.profond&&d.profond[j])l+=" | profond="+hm(d.profond[j]);
+    if(d.paradoxal&&d.paradoxal[j])l+=" | rem="+hm(d.paradoxal[j]);
+    if(d.fcRepos&&d.fcRepos[j])l+=" | fc="+Math.round(d.fcRepos[j]);
+    if(d.vfc&&d.vfc[j])l+=" | vfc="+Math.round(d.vfc[j]);
+    L.push(l);
   });
   Object.keys(d.pas||{}).forEach(j=>{
     const n=Math.round(d.pas[j]); if(n>0)L.push("PAS | "+j+" | "+n);
@@ -2902,6 +3181,7 @@ function go(name){
   $$(".nav button").forEach(b=>b.classList.toggle("on",b.dataset.go===name));
   window.scrollTo(0,0);
   if(name==="day"){renderDay()}
+  if(name==="trend"){renderTrend()}
 }
 function addFood(f,grams){
   const d=D();
