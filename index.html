@@ -970,7 +970,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="27/08 · 342";
+const BUILD="27/08 · 343";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -3479,6 +3479,11 @@ $("#b-hc-diag").addEventListener("click",()=>{
           x.repetitions?x.repetitions+" rep":null,
           x.metres?Math.round(x.metres)+" m":null,
           x.kcal?Math.round(x.kcal)+" kcal":null].filter(Boolean).join(" · ")),
+        /* Ce que la journee retient reellement, pour confronter la lecture
+           a l'etat enregistre quand les deux semblent se contredire. */
+        jour:(function(){const t=today(),j=D(t);return{
+          date:t,sommeil:j.sleep,pas:j.steps,depense:j.burn,
+          souplesse:j.flexSec,renfort:j.rf}})(),
         joursSommeil:Object.keys(d.sommeil||{}).length,
         joursPas:Object.keys(d.pas||{}).length,
         pesees:Object.keys(d.poids||{}).length,
