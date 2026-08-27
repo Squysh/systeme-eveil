@@ -797,13 +797,13 @@ canvas{width:100%;display:block}
         </div>
       </div>
       <div class="wtr">
-        <button data-w="1">+1</button>
-        <button data-w="5">+5</button>
-        <button data-w="10">+10</button>
+        <button data-w="250">+25 cl</button>
+        <button data-w="500">+50 cl</button>
+        <button data-w="1000">+1 L</button>
       </div>
       <div class="wtr" style="margin-top:6px">
-        <button data-w="-1" class="und">−1</button>
-        <button data-w="-5" class="und">−5</button>
+        <button data-w="-250" class="und">−25 cl</button>
+        <button data-w="-500" class="und">−50 cl</button>
         <button data-w="clear" class="und">Effacer</button>
       </div>
       <p class="tiny" id="wt-verres" style="margin-top:8px"></p>
@@ -970,7 +970,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="27/08 · 345";
+const BUILD="27/08 · 346";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -3393,7 +3393,7 @@ $("#b-customfood").addEventListener("click",()=>{
   $("#cf-n").value=$("#cf-k").value=$("#cf-p").value="";
 });
 /* Les boutons comptent en verres : c'est l'unite dans laquelle on boit. */
-const VERRE=250;
+const VERRE=250;   /* sert encore a exprimer le total en verres */
 $("#s-day").addEventListener("click",e=>{
   if(!e.target.closest(".wtr"))return;
   const b=e.target.closest("[data-w]");if(!b)return;
@@ -3402,7 +3402,7 @@ $("#s-day").addEventListener("click",e=>{
     d.water=0;
     toast("Hydratation remise à zéro","Le compteur du jour repart de zéro.");
   }else{
-    d.water=Math.max(0,d.water+ (+b.dataset.w)*VERRE);
+    d.water=Math.max(0,d.water+(+b.dataset.w));
     gainXP(1,"Hydratation.");
   }
   autoQuests();checkAch();render();
