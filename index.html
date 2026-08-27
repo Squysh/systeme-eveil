@@ -970,7 +970,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="27/08 · 339";
+const BUILD="27/08 · 340";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -3443,8 +3443,14 @@ $("#b-hc-diag").addEventListener("click",()=>{
   z.hidden=false;z.textContent="Lecture…";
   Promise.all([m.status(),m.lire({jours:90}).catch(e=>({erreurLecture:String(e)}))])
     .then(([st,d])=>{
-      const r={statut:st,seances:(d.seances||[]).length,
-        exempleSeance:(d.seances||[])[0]||null,
+      /* Toutes les seances, pas seulement la premiere : c'est en les comparant
+         qu'on voit ce que la montre transmet vraiment et ce qu'elle retient. */
+      const r={statut:st,
+        seances:(d.seances||[]).map(x=>[x.date,x.titre||"sans titre",x.type,
+          x.secondes+" s",
+          x.repetitions?x.repetitions+" rep":null,
+          x.metres?Math.round(x.metres)+" m":null,
+          x.kcal?Math.round(x.kcal)+" kcal":null].filter(Boolean).join(" · ")),
         joursSommeil:Object.keys(d.sommeil||{}).length,
         joursPas:Object.keys(d.pas||{}).length,
         pesees:Object.keys(d.poids||{}).length,
