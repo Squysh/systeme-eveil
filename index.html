@@ -970,7 +970,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="27/08 · 344";
+const BUILD="27/08 · 345";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -1425,10 +1425,6 @@ function finishQuest(id,silent){
   }
   if(!silent)toast("Quête validée",q.t+" · +"+q.xp+" XP");
   if(S.quests.every(x=>x.done))completeAll();
-  if(it.k==="m"){
-    D(it.d).food.push({i:Date.now()+Math.random(),n:it.n,m:it.meal,q:0,k:it.v,p:it.p||0,c:0,f:it.f||0});
-    gainXP(3,"Repas importé.");
-  }
   return true;
 }
 /* Décocher une quête manuelle : rend les points, la statistique, le volume
@@ -2920,6 +2916,10 @@ function appliquerImport(it){
     });
     Object.keys(c).forEach(k2=>{if(k2!=="grace")S[k2]=c[k2]});
     recalibrerQuetes();
+  }
+  if(it.k==="m"){
+    D(it.d).food.push({i:Date.now()+Math.random(),n:it.n,m:it.meal,q:0,k:it.v,p:it.p||0,c:0,f:it.f||0});
+    gainXP(3,"Repas importé.");
   }
   if(it.k==="j"){
     D(prevDay(it.d)).eatEnd=it.end;D(it.d).eatStart=it.start;
