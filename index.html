@@ -970,7 +970,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="27/08 · 343";
+const BUILD="27/08 · 344";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -3140,8 +3140,10 @@ function hcVersBloc(d){
 }
 /* A l'ouverture : on lit, on importe ce qui est nouveau, on le dit.
    Les doublons sont ecartes par le meme filtre que l'import manuel. */
+let HCERR=null;
 function hcAuto(){
   const m=HC();if(!m)return;
+  HCERR=null;
   m.status().then(st=>{
     if(st.sdk!=="disponible"||!st.completes)return;
     return m.lire({jours:90}).then(d=>{
@@ -3175,7 +3177,11 @@ function hcAuto(){
       logIt("Garmin : "+parts.join(", "));
       toast("Synchronisation Garmin",parts.join(" · ")+" récupérée(s) automatiquement.","gold");
     });
-  }).catch(()=>{});
+  }).catch(e=>{
+    HCERR=(e&&(e.message||e.toString()))||"erreur inconnue";
+    const z=$("#hc-etat");
+    if(z)z.textContent="La synchronisation automatique a échoué : "+HCERR;
+  });
 }
 function hcLire(){
   const m=HC();if(!m)return;
@@ -3484,6 +3490,7 @@ $("#b-hc-diag").addEventListener("click",()=>{
         jour:(function(){const t=today(),j=D(t);return{
           date:t,sommeil:j.sleep,pas:j.steps,depense:j.burn,
           souplesse:j.flexSec,renfort:j.rf}})(),
+        erreurAuto:HCERR,
         joursSommeil:Object.keys(d.sommeil||{}).length,
         joursPas:Object.keys(d.pas||{}).length,
         pesees:Object.keys(d.poids||{}).length,
