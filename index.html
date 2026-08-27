@@ -970,7 +970,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="27/08 · 341";
+const BUILD="27/08 · 342";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -3159,12 +3159,20 @@ function hcAuto(){
       if(nw)parts.push(nw+" pesée"+(nw>1?"s":""));
       const ns=items.filter(it=>it.k==="s").length;
       if(ns)parts.push(ns+" nuit"+(ns>1?"s":""));
+      const nso=items.filter(it=>it.k==="sou").length;
+      if(nso)parts.push("séance de souplesse");
+      const nrf=items.filter(it=>it.k==="rf").length;
+      if(nrf)parts.push("renforcement");
       const npas=items.filter(it=>it.k==="p"&&it.d===today()).length;
       if(npas)parts.push(nb(D().steps)+" pas");
       PENDING=[];
+      /* Tout ce qui vient d'etre applique doit etre valide, affiche et
+         enregistre — render() est ce qui sauvegarde. Sortir avant, c'est
+         perdre en memoire ce qu'on vient de lire, et laisser une quete
+         acquise decochee a l'ecran. */
+      autoQuests();checkAch();render();
       if(!parts.length)return;
       logIt("Garmin : "+parts.join(", "));
-      autoQuests();checkAch();render();
       toast("Synchronisation Garmin",parts.join(" · ")+" récupérée(s) automatiquement.","gold");
     });
   }).catch(()=>{});
