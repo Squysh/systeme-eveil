@@ -970,7 +970,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="27/08 · 340";
+const BUILD="27/08 · 341";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -3081,10 +3081,27 @@ function hcStatut(){
   }).catch(e=>{$("#hc-etat").textContent="Erreur : "+(e.message||e)});
 }
 /* Traduit ce que renvoie Health Connect vers le format d'import existant. */
+const estGainage=t=>/gainage|planche|plank|core/i.test(t||"");
+const estRenfortNomme=t=>/pompe|push.?up|squat|traction|pull.?up|abdo|crunch/i.test(t||"");
+/* Ce que la montre a enregistre mais que Sante Connect ne transmet pas :
+   le detail des repetitions. On le nomme plutot que de le passer sous silence. */
+function seancesSansDetail(d){
+  return (d.seances||[]).filter(x=>x.type==="renfort"&&x.secondes>=30&&
+    !x.repetitions&&estRenfortNomme(x.titre))
+    .map(x=>x.titre+" ("+Math.round(x.secondes)+" s)");
+}
 function hcVersBloc(d){
   const L=[],NL=String.fromCharCode(10);
+  /* Le titre de la seance dit ce que Sante Connect tait. Garmin classe le
+     gainage en souplesse, ce qui en ferait un etirement : le nom rectifie.
+     Et le gainage se compte en secondes, donc il se recupere entierement,
+     contrairement aux pompes et aux squats dont les repetitions restent
+     bloquees a la frontiere de Sante Connect. */
   const hm=h=>{const t2=Math.round(h*60);return Math.floor(t2/60)+":"+String(t2%60).padStart(2,"0")};
   (d.seances||[]).forEach(x=>{
+    if(estGainage(x.titre)&&x.secondes){
+      L.push("RENFORT | "+x.date+" | gainage="+Math.round(x.secondes));return;
+    }
     /* Une seance d'etirement se compte en minutes tenues, pas en kilometres. */
     if(x.type==="souplesse"&&x.secondes){
       L.push("SOUPLESSE | "+x.date+" | "+Math.round(x.secondes/60));return;
@@ -3161,8 +3178,11 @@ function hcLire(){
     if(!bloc){$("#hc-etat").textContent="Health Connect n'a rien à donner sur 90 jours. Vérifie que Garmin Connect y écrit bien.";return}
     $("#paste").value=bloc;
     showPreview(fromSync(bloc,"Garmin"));
+    const muettes=seancesSansDetail(d);
     $("#hc-etat").textContent="Données récupérées. Vérifie l'aperçu ci-dessous puis valide l'import."
-      +((d.soucis&&d.soucis.length)?" Lecture partielle : "+d.soucis.join(" · ")+".":"");
+      +((d.soucis&&d.soucis.length)?" Lecture partielle : "+d.soucis.join(" · ")+".":"")
+      +(muettes.length?" Santé Connect ne transmet pas les répétitions de : "
+        +muettes.join(", ")+". Saisis-les à la main.":"");
     $("#paste").scrollIntoView({behavior:"smooth",block:"center"});
   }).catch(e=>{$("#hc-etat").textContent="Erreur : "+(e.message||e)});
 }
