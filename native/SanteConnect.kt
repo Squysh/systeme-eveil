@@ -175,7 +175,14 @@ class SanteConnect : Plugin() {
             // un agregat par journee ne permettrait pas de les rattacher.
             val seances = JSArray()
             try {
-                c.readRecords(ReadRecordsRequest(ExerciseSessionRecord::class, filtre)).records.forEach { s ->
+                // Plusieurs passerelles decrivent la meme seance : Health Sync et
+                // Strava deposent chacun la sienne. Sans dedoublonnage, distances et
+                // calories sont comptees deux fois. On garde un exemplaire par minute
+                // de depart, en preferant celui qui porte un titre.
+                c.readRecords(ReadRecordsRequest(ExerciseSessionRecord::class, filtre)).records
+                    .sortedByDescending { (it.title ?: "").length }
+                    .distinctBy { it.startTime.epochSecond / 60 }
+                    .forEach { s ->
                     val plage = TimeRangeFilter.between(s.startTime, s.endTime)
                     val o = JSObject()
                     o.put("date", jour(s.startTime))
@@ -184,11 +191,15 @@ class SanteConnect : Plugin() {
                     o.put("secondes", java.time.Duration.between(s.startTime, s.endTime).seconds)
                     try {
                         o.put("metres", c.readRecords(ReadRecordsRequest(DistanceRecord::class, plage))
-                            .records.sumOf { it.distance.inMeters })
+                            .records.groupBy { it.metadata.dataOrigin.packageName }
+                            .map { (_, l) -> l.sumOf { r -> r.distance.inMeters } }
+                            .maxOrNull() ?: 0.0)
                     } catch (e: Throwable) { noter("distance", e) }
                     try {
                         o.put("kcal", c.readRecords(ReadRecordsRequest(TotalCaloriesBurnedRecord::class, plage))
-                            .records.sumOf { it.energy.inKilocalories })
+                            .records.groupBy { it.metadata.dataOrigin.packageName }
+                            .map { (_, l) -> l.sumOf { r -> r.energy.inKilocalories } }
+                            .maxOrNull() ?: 0.0)
                     } catch (e: Throwable) { noter("depense", e) }
                     // Les repetitions d'une seance de force vivent dans ses segments,
                     // mais cette version de la bibliotheque n'expose pas les constantes
@@ -233,20 +244,26 @@ class SanteConnect : Plugin() {
             // Pas
             val pas = JSObject()
             try {
-                c.readRecords(ReadRecordsRequest(StepsRecord::class, filtre)).records.forEach { p ->
-                    val k = jour(p.startTime)
-                    pas.put(k, (pas.optDouble(k, 0.0)) + p.count)
-                }
+                c.readRecords(ReadRecordsRequest(StepsRecord::class, filtre)).records
+                    .groupBy { jour(it.startTime) }
+                    .forEach { (k, l) ->
+                        pas.put(k, l.groupBy { it.metadata.dataOrigin.packageName }
+                            .map { (_, m) -> m.sumOf { r -> r.count } }
+                            .maxOrNull()?.toDouble() ?: 0.0)
+                    }
             } catch (e: Throwable) { noter("pas", e) }
             res.put("pas", pas)
 
             // Depense energetique
             val kcal = JSObject()
             try {
-                c.readRecords(ReadRecordsRequest(TotalCaloriesBurnedRecord::class, filtre)).records.forEach { e ->
-                    val k = jour(e.startTime)
-                    kcal.put(k, (kcal.optDouble(k, 0.0)) + e.energy.inKilocalories)
-                }
+                c.readRecords(ReadRecordsRequest(TotalCaloriesBurnedRecord::class, filtre)).records
+                    .groupBy { jour(it.startTime) }
+                    .forEach { (k, l) ->
+                        kcal.put(k, l.groupBy { it.metadata.dataOrigin.packageName }
+                            .map { (_, m) -> m.sumOf { r -> r.energy.inKilocalories } }
+                            .maxOrNull() ?: 0.0)
+                    }
             } catch (e: Throwable) { noter("depense journaliere", e) }
             res.put("kcal", kcal)
 
