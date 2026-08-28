@@ -120,6 +120,32 @@ input,select,textarea{font-family:inherit}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 /* Les courbes vivent dans leur propre module : les ecrans de pilotage
    restent sans graphique, comme demande. */
+/* Signal de synchronisation. Il informe sans jamais retarder l'ouverture :
+   l'application s'affiche tout de suite, la montre arrive derriere. */
+.sync{
+  display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:8px 13px;
+  border-radius:12px;border:1px solid var(--bord-doux);
+  background:rgba(227,205,139,.06);overflow:hidden;position:relative;
+}
+.sync span{font-family:var(--f-mono);font-size:.76rem;color:var(--creme-2)}
+.sync i{
+  flex:0 0 auto;width:9px;height:9px;border-radius:50%;background:var(--or);
+  box-shadow:0 0 10px var(--or);animation:pouls 1.3s ease-in-out infinite;
+}
+.sync.fini i{animation:none;background:var(--vert);box-shadow:0 0 10px var(--vert)}
+.sync.rate i{animation:none;background:var(--rouge);box-shadow:0 0 10px var(--rouge)}
+.sync::after{
+  content:"";position:absolute;left:0;bottom:0;height:2px;width:100%;
+  background:linear-gradient(90deg,transparent,var(--or),transparent);
+  transform:translateX(-100%);animation:file 1.6s linear infinite;
+}
+.sync.fini::after,.sync.rate::after{display:none}
+@keyframes pouls{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes file{to{transform:translateX(100%)}}
+@media(prefers-reduced-motion:reduce){
+  .sync i{animation:none}
+  .sync::after{display:none}
+}
 .graph{margin:14px 0 10px;padding:12px 10px 6px;border-radius:14px;
   border:1px solid var(--bord-doux);background:rgba(0,0,0,.22)}
 .graph svg{display:block;width:100%;height:auto;overflow:visible}
@@ -482,6 +508,7 @@ canvas{width:100%;display:block}
     <div class="who"><b id="h-name">—</b><span id="h-lvl">NIVEAU 1</span></div>
     <div class="streak"><span id="h-streak">0</span><small>jours d'affilée</small></div>
   </header>
+  <div class="sync" id="sync" hidden><i></i><span id="sync-txt">Synchronisation…</span></div>
 
   <!-- ============ STATUT ============ -->
   <section class="screen" id="s-status">
@@ -970,7 +997,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="28/08 · 347";
+const BUILD="28/08 · 348";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -3141,17 +3168,33 @@ function hcVersBloc(d){
 /* A l'ouverture : on lit, on importe ce qui est nouveau, on le dit.
    Les doublons sont ecartes par le meme filtre que l'import manuel. */
 let HCERR=null;
+/* Le bandeau dit ou en est la montre. Il ne retarde rien : l'application est
+   deja utilisable quand il s'affiche, et il disparait seul. */
+function sync(etat,texte){
+  const z=$("#sync");if(!z)return;
+  if(etat==="cache"){z.hidden=true;return}
+  z.hidden=false;
+  z.classList.toggle("fini",etat==="fini");
+  z.classList.toggle("rate",etat==="rate");
+  $("#sync-txt").textContent=texte;
+  if(etat!=="cours")setTimeout(()=>{
+    /* On n'efface que ce qui est encore affiche : une nouvelle
+       synchronisation lancee entre-temps doit rester visible. */
+    if($("#sync-txt").textContent===texte)sync("cache");
+  },etat==="rate"?9000:4000);
+}
 function hcAuto(){
   const m=HC();if(!m)return;
   HCERR=null;
+  sync("cours","Lecture de la montre…");
   m.status().then(st=>{
-    if(st.sdk!=="disponible"||!st.completes)return;
+    if(st.sdk!=="disponible"||!st.completes){sync("cache");return}
     return m.lire({jours:90}).then(d=>{
-      if(!d.ok)return;
+      if(!d.ok){sync("rate","La montre n'a rien pu rendre.");return}
       const bloc=hcVersBloc(d);
-      if(!bloc)return;
+      if(!bloc){sync("fini","Rien de nouveau depuis la montre.");return}
       const items=fromSync(bloc,"Garmin").filter(it=>!isDup(it));
-      if(!items.length)return;
+      if(!items.length){sync("fini","Tout est déjà à jour.");return}
       PENDING=items;
       const av={r:S.runs.length,w:S.weights.length};
       items.forEach((it,i)=>appliquerImport(it));
@@ -3173,12 +3216,14 @@ function hcAuto(){
          perdre en memoire ce qu'on vient de lire, et laisser une quete
          acquise decochee a l'ecran. */
       autoQuests();checkAch();render();
-      if(!parts.length)return;
+      if(!parts.length){sync("fini","Tout est déjà à jour.");return}
+      sync("fini",parts.join(" · ")+" — récupéré");
       logIt("Garmin : "+parts.join(", "));
       toast("Synchronisation Garmin",parts.join(" · ")+" récupérée(s) automatiquement.","gold");
     });
   }).catch(e=>{
     HCERR=(e&&(e.message||e.toString()))||"erreur inconnue";
+    sync("rate","Synchronisation impossible : "+HCERR);
     const z=$("#hc-etat");
     if(z)z.textContent="La synchronisation automatique a échoué : "+HCERR;
   });
