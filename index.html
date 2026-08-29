@@ -997,7 +997,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="29/08 · 349";
+const BUILD="29/08 · 350";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -2870,7 +2870,10 @@ function isDup(it){
   if(it.k==="r")return S.runs.some(r=>r.date===it.d&&Math.abs(r.d-it.dist)<0.05&&Math.abs(r.t-it.t)<15);
   if(it.k==="w")return S.weights.some(w=>w.d===it.d&&Math.abs(w.v-it.v)<0.05&&
     !["fat","mus","visc","tmb"].some(k=>it[k]&&!w[k]));
-  if(it.k==="s"){const dd=S.days[it.d];return!!(dd&&dd.sleep!==null&&dd.sleep!==undefined)}
+  /* Une nuit deja enregistree doit rester corrigible : sans cela, une valeur
+     fausse serait figee pour toujours. Seule une valeur identique n'apprend rien. */
+  if(it.k==="s"){const dd=S.days[it.d];
+    return!!(dd&&dd.sleep!==null&&dd.sleep!==undefined&&Math.abs(dd.sleep-it.v)<0.02)}
   if(it.k==="e"){const dd=S.days[it.d];return!!(dd&&dd.water===it.v)}
   /* Pas et depense sont des releves, pas des ajouts : seule une valeur
      identique n'apprend rien. Refuser les valeurs plus basses figerait une
