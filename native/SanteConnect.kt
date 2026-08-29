@@ -244,8 +244,22 @@ class SanteConnect : Plugin() {
             try {
                 c.readRecords(ReadRecordsRequest(SleepSessionRecord::class, filtre)).records.forEach { s ->
                     val k = jour(s.endTime)
-                    plages.getOrPut(k) { mutableListOf() }
-                        .add(s.startTime.epochSecond to s.endTime.epochSecond)
+                    val liste = plages.getOrPut(k) { mutableListOf() }
+                    // La session va du coucher au lever : elle contient les reveils
+                    // nocturnes. Garmin, lui, annonce le sommeil reel. Quand les
+                    // phases sont connues, on ne retient donc que celles ou l'on
+                    // dort vraiment ; sinon on retombe sur la session entiere.
+                    val endormi = s.stages.filter {
+                        it.stage == SleepSessionRecord.STAGE_TYPE_SLEEPING ||
+                        it.stage == SleepSessionRecord.STAGE_TYPE_LIGHT ||
+                        it.stage == SleepSessionRecord.STAGE_TYPE_DEEP ||
+                        it.stage == SleepSessionRecord.STAGE_TYPE_REM
+                    }
+                    if (endormi.isEmpty()) {
+                        liste.add(s.startTime.epochSecond to s.endTime.epochSecond)
+                    } else {
+                        endormi.forEach { liste.add(it.startTime.epochSecond to it.endTime.epochSecond) }
+                    }
                     var pf = 0L; var rem = 0L
                     s.stages.forEach { st ->
                         val d2 = java.time.Duration.between(st.startTime, st.endTime).seconds
