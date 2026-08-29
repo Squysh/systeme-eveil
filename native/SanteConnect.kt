@@ -179,9 +179,23 @@ class SanteConnect : Plugin() {
                 // Strava deposent chacun la sienne. Sans dedoublonnage, distances et
                 // calories sont comptees deux fois. On garde un exemplaire par minute
                 // de depart, en preferant celui qui porte un titre.
+                val vues = mutableListOf<Pair<Long, Long>>()
                 c.readRecords(ReadRecordsRequest(ExerciseSessionRecord::class, filtre)).records
                     .sortedByDescending { (it.title ?: "").length }
-                    .distinctBy { it.startTime.epochSecond / 60 }
+                    .filter { s ->
+                        val d = s.startTime.epochSecond
+                        val f = s.endTime.epochSecond
+                        val duree = (f - d).coerceAtLeast(1)
+                        // Deux enregistrements qui se recouvrent largement decrivent
+                        // la meme seance, meme si leurs bornes different de plusieurs
+                        // minutes : Health Sync et Strava ne la decoupent pas pareil.
+                        val double = vues.any { (a, b) ->
+                            val commun = minOf(f, b) - maxOf(d, a)
+                            commun > 0 && commun * 2 > duree
+                        }
+                        if (!double) vues.add(d to f)
+                        !double
+                    }
                     .forEach { s ->
                     val plage = TimeRangeFilter.between(s.startTime, s.endTime)
                     val o = JSObject()
@@ -222,19 +236,40 @@ class SanteConnect : Plugin() {
             val sommeil = JSObject()
             val profond = JSObject()
             val paradoxal = JSObject()
+            // Additionner les nuits comptait deux fois ce que deux applications
+            // decrivent au meme moment. On retient l'union des intervalles : un
+            // meme sommeil rapporte par deux sources ne compte qu'une fois, une
+            // sieste separee compte en plus, et une nuit decoupee se recolle.
+            val plages = mutableMapOf<String, MutableList<Pair<Long, Long>>>()
             try {
                 c.readRecords(ReadRecordsRequest(SleepSessionRecord::class, filtre)).records.forEach { s ->
                     val k = jour(s.endTime)
-                    val h = java.time.Duration.between(s.startTime, s.endTime).seconds / 3600.0
-                    sommeil.put(k, (sommeil.optDouble(k, 0.0)) + h)
+                    plages.getOrPut(k) { mutableListOf() }
+                        .add(s.startTime.epochSecond to s.endTime.epochSecond)
                     var pf = 0L; var rem = 0L
                     s.stages.forEach { st ->
                         val d2 = java.time.Duration.between(st.startTime, st.endTime).seconds
                         if (st.stage == SleepSessionRecord.STAGE_TYPE_DEEP) pf += d2
                         if (st.stage == SleepSessionRecord.STAGE_TYPE_REM) rem += d2
                     }
-                    if (pf > 0) profond.put(k, profond.optDouble(k, 0.0) + pf / 3600.0)
-                    if (rem > 0) paradoxal.put(k, paradoxal.optDouble(k, 0.0) + rem / 3600.0)
+                    // Meme raison pour les stades : on garde le releve le plus
+                    // fourni plutot que d'empiler ceux qui se repetent.
+                    if (pf > 0) profond.put(k, maxOf(profond.optDouble(k, 0.0), pf / 3600.0))
+                    if (rem > 0) paradoxal.put(k, maxOf(paradoxal.optDouble(k, 0.0), rem / 3600.0))
+                }
+                plages.forEach { (k, l) ->
+                    var total = 0L
+                    var debut = -1L
+                    var fin = -1L
+                    l.sortedBy { it.first }.forEach { (d, f) ->
+                        when {
+                            debut < 0 -> { debut = d; fin = f }
+                            d <= fin -> fin = maxOf(fin, f)
+                            else -> { total += fin - debut; debut = d; fin = f }
+                        }
+                    }
+                    if (debut >= 0) total += fin - debut
+                    sommeil.put(k, total / 3600.0)
                 }
             } catch (e: Throwable) { noter("sommeil", e) }
             res.put("sommeil", sommeil)

@@ -997,7 +997,7 @@ REPAS   | 2026-08-23 | Midi | Poulet riz | 620 | 45 | 18</pre>
 /* Cette clé ne doit JAMAIS changer : c'est elle qui relie une mise à jour de la
    page aux données déjà présentes sur l'appareil. La changer effacerait la
    progression du joueur. Les nouveautés s'ajoutent via blank(), jamais ici. */
-const BUILD="28/08 · 348";
+const BUILD="29/08 · 349";
 const KEY="systeme-eveil-v2";
 const KEYBAK=KEY+"-secours";
 const NL=String.fromCharCode(10);
@@ -1354,19 +1354,46 @@ function zoneQuest(){
 }
 
 /* ================= quêtes ================= */
+/* ---------- charge accumulee ----------
+   Une serie de jours d'effort sans relache finit par couter plus qu'elle ne
+   rapporte : c'est au repos que le corps encaisse, pas a l'entrainement. Le
+   Systeme compte donc les jours consecutifs et impose lui-meme une journee
+   allegee — conformement a la regle posee des le depart : le repos ne se
+   propose pas, il se decide. */
+const SEUIL_REPOS=6;
+function joursConsecutifs(){
+  let n=0;
+  for(let i=1;i<=21;i++){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const k=ymd(d),dd=S.days[k];
+    const bouge=S.runs.some(r=>r.date===k)
+      ||!!(dd&&((dd.flexSec||0)>0
+        ||(dd.rf&&((dd.rf.push||0)+(dd.rf.squat||0)+(dd.rf.core||0))>0)));
+    if(!bouge)break;
+    n++;
+  }
+  return n;
+}
+/* Vrai quand la serie est assez longue pour qu'une journee legere s'impose.
+   Le mode repos manuel a la priorite : inutile d'en superposer deux. */
+function reposImpose(){return !restOn()&&joursConsecutifs()>=SEUIL_REPOS}
+
 function genQuests(){
   const L=S.lvl,F=S.stats.FOR;
   const k=1+sev().durcit*Math.min(S.fails,4);
   const repos=restOn();
-  const act=repos?(S.rest.act||"marche"):"course";
+  const leger=reposImpose();
+  const act=repos?(S.rest.act||"marche"):leger?"marche":"course";
   /* La charge allege le renforcement : des courbatures ne se soignent pas en
-     arretant, mais en reduisant le volume. */
-  const ch=repos?clamp(+S.rest.charge||1,.2,1):1;
+     arretant, mais en reduisant le volume. Une journee imposee applique la
+     meme mecanique, sans attendre la douleur. */
+  const ch=repos?clamp(+S.rest.charge||1,.2,1):leger?.55:1;
   const push=Math.max(5,Math.min(150,Math.round((12+L*2.2+F*.5)*k*ch)));
   const squat=Math.max(5,Math.min(180,Math.round((18+L*2.6+F*.5)*k*ch)));
   const core=Math.max(15,Math.min(360,Math.round((35+L*6)*k*ch)));
+  const kmPlein=Math.min(12,Math.round((1.5+L*.22+S.fit*.6)*k*10)/10);
   const km=repos?Math.max(.5,+S.rest.km||2)
-                :Math.min(12,Math.round((1.5+L*.22+S.fit*.6)*k*10)/10);
+                :leger?Math.max(1,Math.round(kmPlein*.5*10)/10):kmPlein;
   const flex=Math.min(20,8+Math.round(L*.35));
   const q=[
     {id:"push",grp:"phys",n:push,t:"Pompes ×"+push,s:"Séries libres, poitrine au sol",xp:18,st:["FOR",.35],done:false},
@@ -1879,7 +1906,14 @@ function renderQuests(){
   const dn=S.quests.filter(q=>q.done).length;
   $("#q-count").textContent=dn+" / "+S.quests.length;
   $("#q-bar").style.width=(dn/S.quests.length*100)+"%";
-  $("#q-warn").textContent=dn===S.quests.length?"Quête journalière accomplie.":"Il reste "+(S.quests.length-dn)+" quête(s) avant minuit.";
+  /* Une journee allegee doit s'expliquer, sinon elle passe pour une panne. */
+  const serie=joursConsecutifs();
+  $("#q-warn").textContent=
+    reposImpose()?"Journée allégée imposée : "+serie+" jours d'affilée sans coupure. "
+      +"Volume réduit et marche au lieu de la course — c'est au repos que le corps encaisse."
+    :dn===S.quests.length?"Quête journalière accomplie."
+    :"Il reste "+(S.quests.length-dn)+" quête(s) avant minuit."
+      +(serie>=SEUIL_REPOS-2?" "+serie+" jours d'affilée : le Système imposera une journée allégée à "+SEUIL_REPOS+".":"");
 }
 
 /* ================= module Courbes =================
